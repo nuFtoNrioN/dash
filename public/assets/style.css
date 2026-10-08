@@ -87,3 +87,18 @@ dialog::backdrop{background:rgba(5,4,10,.7)}dialog p{margin-bottom:16px}dialog .
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 select{width:100%;background:var(--s1);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:inherit}.lr select{grid-column:1/3}
+dialog{margin:auto}
+.gate{display:grid;place-items:center;min-height:100dvh;margin:0;max-width:none;padding:20px}
+.gate::before{content:"";position:fixed;inset:0;z-index:-1;background:radial-gradient(700px 420px at 50% 18%,color-mix(in srgb,var(--ac) 24%,transparent),transparent)}
+.gcard{width:100%;max-width:380px;background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:28px 24px;animation:rise .6s cubic-bezier(.2,.8,.2,1) both}
+.gb{font-size:32px;font-weight:700;letter-spacing:-.02em}.gb small{font-size:16px;font-weight:400;color:var(--mu);margin-left:8px}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}}
+.swrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.sw1{width:30px;height:30px;border-radius:50%;border:2px solid transparent;cursor:pointer;outline:1px solid var(--line);outline-offset:2px}.sw1.on{border-color:var(--tx)}
+input[type=color]{width:44px;height:30px;padding:0;border:1px solid var(--line);background:none;border-radius:6px;cursor:pointer}
+input[type=range]{width:100%;accent-color:var(--ac)}input[type=radio]{accent-color:var(--ac)}
+label b{color:var(--tx);font-weight:500;margin-left:6px}
+.bgl{display:flex;align-items:center;gap:10px;color:var(--tx);font-size:15px;margin:0;cursor:pointer;min-width:0}
+.th{width:56px;height:32px;border-radius:6px;background:var(--s2) center/cover;flex:none}
+.bgform{display:grid;grid-template-columns:1fr 1.5fr auto auto;gap:8px;margin-top:12px}
+@media(max-width:859px){.nav a{font-size:11px}.bgform{grid-template-columns:1fr}}
