@@ -1,4 +1,4 @@
-const TZ_OFFSET_HOURS = 7; // phải giống bên bio
+const TZ_OFFSET_HOURS = 7;
 const STATUSES = ['working', 'patched', 'outdated'];
 const ID_RE = /^[a-z0-9-]{2,40}$/;
 
@@ -34,7 +34,6 @@ function today(offsetDays = 0) {
   return new Date(t).toISOString().slice(0, 10);
 }
 
-// ---------- đăng nhập bằng mật khẩu + cookie phiên ----------
 const COOKIE = 'noir_session';
 const SESSION_DAYS = 30;
 const MAX_FAILS = 5;
@@ -60,7 +59,6 @@ async function safeEqual(a, b) {
   return diff === 0;
 }
 
-// Chưa đặt đủ secret thì đóng hoàn toàn
 const configured = (env) =>
   typeof env.ADMIN_PASSWORD === 'string' && env.ADMIN_PASSWORD.length >= 12 &&
   typeof env.SESSION_SECRET === 'string' && env.SESSION_SECRET.length >= 32;
@@ -80,7 +78,6 @@ function getCookie(request, name) {
   return m ? m[1] : null;
 }
 
-// Trả về định danh admin, hoặc null nếu KHÔNG hợp lệ (đóng mặc định)
 async function authenticate(request, env) {
   if (env.DEV_ADMIN_BYPASS === '1') return 'dev@local';
   if (!configured(env)) return null;
@@ -127,7 +124,6 @@ function logout(request, url) {
   return json({ ok: true }, 200, { 'Set-Cookie': `${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0` });
 }
 
-// ---------- admin API ----------
 const str = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const httpsUrl = (v) => {
   try { const u = new URL(v); return u.protocol === 'https:' ? u.href : null; } catch { return null; }
