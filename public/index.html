@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>NOIR Dashboard</title>
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<main class="wrap wide">
+
+  <section id="gate" class="hidden card" style="max-width:420px;margin:60px auto">
+    <h3>Đăng nhập</h3>
+    <label for="pw">Mật khẩu admin</label>
+    <input id="pw" type="password" autocomplete="current-password">
+    <div class="actions"><button id="loginBtn" class="btn primary" type="button">Vào</button></div>
+    <p id="gateErr" class="meta" style="color:var(--danger)"></p>
+  </section>
+
+  <section id="app" class="hidden">
+    <div class="topbar">
+      <h1>NOIR Admin</h1>
+      <div class="row">
+        <a id="viewSite" class="btn small fit" href="#" target="_blank" rel="noopener">Xem trang</a>
+        <button id="logout" class="btn small fit" type="button">Đăng xuất</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="tabs"></div>
+
+    <!-- Tổng quan -->
+    <div id="tab-overview">
+      <div class="stats" id="statTotals"></div>
+      <div class="card"><b>Lượt xem trang (30 ngày)</b><div class="bars" id="barsView"></div></div>
+      <div class="card"><b>Lượt copy (30 ngày)</b><div class="bars" id="barsCopy"></div></div>
+      <div class="card"><b>Lượt chạy raw (30 ngày)</b><div class="bars" id="barsRun"></div></div>
+      <h2>Script theo lượt chạy</h2>
+      <div id="topScripts"></div>
+    </div>
+
+    <!-- Hồ sơ -->
+    <div id="tab-profile" class="hidden card">
+      <label for="pName">Tên hiển thị</label><input id="pName" maxlength="60">
+      <label for="pBio">Giới thiệu (tối đa 500 ký tự)</label><textarea id="pBio" maxlength="500"></textarea>
+      <label for="pAvatar">Link avatar (https)</label><input id="pAvatar" placeholder="https://...">
+      <div class="actions"><button id="saveProfile" class="btn primary" type="button">Lưu hồ sơ</button></div>
+    </div>
+
+    <!-- Links -->
+    <div id="tab-links" class="hidden">
+      <div id="linkRows"></div>
+      <div class="actions">
+        <button id="addLink" class="btn" type="button">+ Thêm link</button>
+        <button id="saveLinks" class="btn primary" type="button">Lưu links</button>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <div id="tab-scripts" class="hidden">
+      <div id="scriptList"></div>
+      <div class="actions"><button id="newScript" class="btn primary" type="button">+ Script mới</button></div>
+
+      <div id="scriptForm" class="hidden card" style="margin-top:16px">
+        <label for="sId">ID (dùng trong link raw, a-z 0-9 và dấu -)</label><input id="sId" maxlength="40">
+        <label for="sTitle">Tiêu đề</label><input id="sTitle" maxlength="80">
+        <div class="row">
+          <div><label for="sGame">Game</label><input id="sGame" maxlength="80"></div>
+          <div><label for="sStatus">Trạng thái</label>
+            <select id="sStatus">
+              <option value="working">Đang chạy</option>
+              <option value="patched">Đã bị patch</option>
+              <option value="outdated">Cũ</option>
+            </select></div>
+        </div>
+        <label for="sDesc">Mô tả</label><textarea id="sDesc" maxlength="500"></textarea>
+        <label for="sCode">Code</label><textarea id="sCode" class="code" spellcheck="false"></textarea>
+        <label class="check"><input type="checkbox" id="sPub"> Công khai (hiện ở trang chính và tải được qua /raw)</label>
+        <div class="actions">
+          <button id="saveScript" class="btn primary" type="button">Lưu script</button>
+          <button id="copyCmd" class="btn" type="button">Copy loadstring</button>
+          <button id="delScript" class="btn danger" type="button">Xoá</button>
+          <button id="cancelScript" class="btn" type="button">Đóng</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<div id="toast" class="toast hidden"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const STATUS_LABEL = { working: 'Đang chạy', patched: 'Đã bị patch', outdated: 'Cũ' };
+let state = { profile: {}, links: [], scripts: [] };
+let editingId = null; // null = đang tạo mới
+let BIO_URL = '';
+
+function el(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else e.setAttribute(k, v);
+  }
+  kids.forEach((c) => e.append(c));
+  return e;
+}
+let toastTimer;
+function toast(msg, err) {
+  const t = $('#toast'); t.textContent = msg; t.className = 'toast' + (err ? ' err' : '');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), 2600);
+}
+
+async function api(path, method = 'GET', body) {
+  const headers = { 'Content-Type': 'application/json' };
+  const res = await fetch('/api/admin' + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  let data = {}; try { data = await res.json(); } catch {}
+  if (res.status === 401) { const e = new Error('Unauthorized'); e.status = 401; throw e; }
+  if (!res.ok) throw new Error(data.error || 'Lỗi ' + res.status);
+  return data;
+}
+const run = async (fn) => { try { await fn(); } catch (e) { if (e.status === 401) showGate(); else toast(e.message, true); } };
+
+/* ---------- gate / boot ---------- */
+function showGate() { $('#app').classList.add('hidden'); $('#gate').classList.remove('hidden'); $('#pw').focus(); }
+$('#loginBtn').onclick = async () => {
+  $('#gateErr').textContent = '';
+  const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: $('#pw').value }) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) { $('#gateErr').textContent = data.error || 'Lỗi ' + res.status; return; }
+  $('#pw').value = '';
+  run(boot);
+};
+$('#pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#loginBtn').click(); });
+$('#logout').onclick = async () => { await fetch('/api/logout', { method: 'POST' }); location.reload(); };
+
+async function boot() {
+  const me = await api('/me');
+  BIO_URL = me.bio_url || '';
+  if (BIO_URL) $('#viewSite').href = BIO_URL;
+  $('#gate').classList.add('hidden'); $('#app').classList.remove('hidden');
+  await reload();
+}
+async function reload() {
+  state = await api('/data');
+  renderProfile(); renderLinks(); renderScriptList();
+  await renderStats();
+}
+
+/* ---------- tabs ---------- */
+const TABS = [['overview', 'Tổng quan'], ['profile', 'Hồ sơ'], ['links', 'Links'], ['scripts', 'Scripts']];
+TABS.forEach(([id, label], i) => {
+  const b = el('button', { class: 'tab' + (i ? '' : ' active'), type: 'button', text: label });
+  b.onclick = () => {
+    document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === b));
+    TABS.forEach(([k]) => $('#tab-' + k).classList.toggle('hidden', k !== id));
+  };
+  $('#tabs').append(b);
+});
+
+/* ---------- profile ---------- */
+function renderProfile() {
+  $('#pName').value = state.profile?.name || '';
+  $('#pBio').value = state.profile?.bio || '';
+  $('#pAvatar').value = state.profile?.avatar_url || '';
+}
+$('#saveProfile').onclick = () => run(async () => {
+  await api('/profile', 'PUT', { name: $('#pName').value, bio: $('#pBio').value, avatar_url: $('#pAvatar').value });
+  toast('Đã lưu hồ sơ ✓');
+});
+
+/* ---------- links ---------- */
+function linkRow(l = {}) {
+  const icon = el('input', { placeholder: '🔗', maxlength: '8', style: 'max-width:64px' }); icon.value = l.icon || '';
+  const label = el('input', { placeholder: 'Tên (vd Discord)', maxlength: '40' }); label.value = l.label || '';
+  const url = el('input', { placeholder: 'https://...', maxlength: '500' }); url.value = l.url || '';
+  const up = el('button', { class: 'btn small fit', type: 'button', text: '↑' });
+  const dn = el('button', { class: 'btn small fit', type: 'button', text: '↓' });
+  const rm = el('button', { class: 'btn small fit danger', type: 'button', text: '✕' });
+  const row = el('div', { class: 'card' }, el('div', { class: 'row' }, icon, label), el('div', { style: 'height:8px' }), el('div', { class: 'row' }, url, up, dn, rm));
+  up.onclick = () => row.previousElementSibling && row.parentNode.insertBefore(row, row.previousElementSibling);
+  dn.onclick = () => row.nextElementSibling && row.parentNode.insertBefore(row.nextElementSibling, row);
+  rm.onclick = () => row.remove();
+  row._get = () => ({ icon: icon.value, label: label.value, url: url.value });
+  return row;
+}
+function renderLinks() {
+  $('#linkRows').replaceChildren(...state.links.map(linkRow));
+}
+$('#addLink').onclick = () => $('#linkRows').append(linkRow());
+$('#saveLinks').onclick = () => run(async () => {
+  await api('/links', 'PUT', { links: [...$('#linkRows').children].map((r) => r._get()) });
+  toast('Đã lưu links ✓');
+});
+
+/* ---------- scripts ---------- */
+function renderScriptList() {
+  const box = $('#scriptList'); box.replaceChildren();
+  if (!state.scripts.length) { box.append(el('div', { class: 'empty', text: 'Chưa có script nào.' })); return; }
+  state.scripts.forEach((s) => {
+    const badges = el('div', { class: 'row fit' },
+      el('span', { class: 'badge ' + s.status, text: STATUS_LABEL[s.status] || s.status }),
+      s.published ? '' : el('span', { class: 'badge draft', text: 'Nháp' }));
+    const card = el('div', { class: 'card', style: 'cursor:pointer' },
+      el('div', { class: 'card-head' },
+        el('div', {}, el('h3', { text: s.title }), el('div', { class: 'meta', text: `${s.id} · ${s.runs} chạy · ${s.copies} copy` })),
+        badges));
+    card.onclick = () => openScript(s);
+    box.append(card);
+  });
+}
+function openScript(s) {
+  editingId = s ? s.id : null;
+  $('#sId').value = s?.id || ''; $('#sId').disabled = !!s;
+  $('#sTitle').value = s?.title || ''; $('#sGame').value = s?.game || '';
+  $('#sStatus').value = s?.status || 'working'; $('#sDesc').value = s?.description || '';
+  $('#sCode').value = s?.code || ''; $('#sPub').checked = s ? !!s.published : true;
+  $('#delScript').classList.toggle('hidden', !s); $('#copyCmd').classList.toggle('hidden', !s);
+  $('#scriptForm').classList.remove('hidden');
+  $('#scriptForm').scrollIntoView({ behavior: 'smooth' });
+}
+$('#newScript').onclick = () => openScript(null);
+$('#cancelScript').onclick = () => $('#scriptForm').classList.add('hidden');
+$('#saveScript').onclick = () => run(async () => {
+  const body = {
+    id: $('#sId').value.trim(), title: $('#sTitle').value, game: $('#sGame').value, status: $('#sStatus').value,
+    description: $('#sDesc').value, code: $('#sCode').value, published: $('#sPub').checked,
+  };
+  if (editingId) await api('/scripts/' + editingId, 'PUT', body); else await api('/scripts', 'POST', body);
+  toast('Đã lưu script ✓');
+  $('#scriptForm').classList.add('hidden');
+  await reload();
+});
+$('#delScript').onclick = () => run(async () => {
+  if (!confirm('Xoá script này? Không hoàn tác được.')) return;
+  await api('/scripts/' + editingId, 'DELETE');
+  toast('Đã xoá');
+  $('#scriptForm').classList.add('hidden');
+  await reload();
+});
+$('#copyCmd').onclick = async () => {
+  const cmd = `loadstring(game:HttpGet("${BIO_URL}/raw/${editingId}"))()`;
+  try { await navigator.clipboard.writeText(cmd); toast('Đã copy loadstring ✓'); } catch { toast('Trình duyệt chặn copy', true); }
+};
+
+/* ---------- stats ---------- */
+async function renderStats() {
+  const st = await api('/stats');
+  const days = [];
+  const start = new Date(st.since + 'T00:00:00Z');
+  for (let i = 0; i < 30; i++) days.push(new Date(start.getTime() + i * 86400e3).toISOString().slice(0, 10));
+  const byKind = { view: {}, copy: {}, run: {} };
+  st.rows.forEach((r) => { if (byKind[r.kind]) byKind[r.kind][r.day] = r.count; });
+  const sum = (k) => days.reduce((a, d) => a + (byKind[k][d] || 0), 0);
+
+  $('#statTotals').replaceChildren(...[['view', 'Lượt xem'], ['copy', 'Lượt copy'], ['run', 'Lượt chạy']].map(([k, label]) =>
+    el('div', { class: 'card stat' }, el('b', { text: String(sum(k)) }), el('span', { text: label + ' (30 ngày)' }))));
+
+  const bars = (id, k) => {
+    const max = Math.max(1, ...days.map((d) => byKind[k][d] || 0));
+    $(id).replaceChildren(...days.map((d) => {
+      const v = byKind[k][d] || 0;
+      const i = el('i', { title: `${d}: ${v}`, class: v ? '' : 'zero' });
+      i.style.height = Math.max(3, (v / max) * 100) + '%';
+      return i;
+    }));
+  };
+  bars('#barsView', 'view'); bars('#barsCopy', 'copy'); bars('#barsRun', 'run');
+
+  const top = [...state.scripts].sort((a, b) => b.runs - a.runs).slice(0, 8);
+  $('#topScripts').replaceChildren(...(top.length ? top.map((s) =>
+    el('div', { class: 'card' }, el('div', { class: 'card-head' }, el('b', { text: s.title }), el('span', { class: 'meta', text: `${s.runs} chạy · ${s.copies} copy` }))))
+    : [el('div', { class: 'empty', text: 'Chưa có dữ liệu.' })]));
+}
+
+run(boot);
+</script>
+</body>
+</html>
