@@ -2,275 +2,186 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<title>NOIR Dashboard</title>
+<meta name="theme-color" content="#14121c">
+<title>noir dash</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap">
 <link rel="stylesheet" href="/assets/style.css">
 </head>
 <body>
-<main class="wrap wide">
+<section id="gate" class="gate" hidden>
+  <h1>Đăng nhập</h1>
+  <label for="pw">Mật khẩu admin</label>
+  <input id="pw" type="password" autocomplete="current-password">
+  <button id="login" class="btn pri" style="margin-top:14px;width:100%">Vào dashboard</button>
+  <p id="gerr" class="err" role="alert"></p>
+</section>
 
-  <section id="gate" class="hidden card" style="max-width:420px;margin:60px auto">
-    <h3>Đăng nhập</h3>
-    <label for="pw">Mật khẩu admin</label>
-    <input id="pw" type="password" autocomplete="current-password">
-    <div class="actions"><button id="loginBtn" class="btn primary" type="button">Vào</button></div>
-    <p id="gateErr" class="meta" style="color:var(--danger)"></p>
-  </section>
+<div id="app" class="shell" hidden>
+  <aside class="side">
+    <div class="brand">noir<small>dash</small></div>
+    <nav class="nav">
+      <a href="#/overview" data-r="overview"><svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>Tổng quan</a>
+      <a href="#/profile" data-r="profile"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Hồ sơ</a>
+      <a href="#/links" data-r="links"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1"/></svg>Links</a>
+      <a href="#/scripts" data-r="scripts"><svg viewBox="0 0 24 24"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"/></svg>Scripts</a>
+    </nav>
+    <div class="foot"><a id="site" href="#" target="_blank" rel="noopener">Mở trang bio</a><button id="out">Đăng xuất</button></div>
+  </aside>
 
-  <section id="app" class="hidden">
-    <div class="topbar">
-      <h1>NOIR Admin</h1>
-      <div class="row">
-        <a id="viewSite" class="btn small fit" href="#" target="_blank" rel="noopener">Xem trang</a>
-        <button id="logout" class="btn small fit" type="button">Đăng xuất</button>
+  <main class="main">
+    <section class="view" id="v-overview">
+      <div class="head"><h1>Tổng quan</h1><a id="site2" class="btn sm" href="#" target="_blank" rel="noopener">Mở trang bio</a></div>
+      <div class="strip" id="strip"></div>
+      <div class="chart">
+        <div class="top"><span id="tip" class="hint" style="margin:0"></span>
+          <div class="seg" id="metric"><label><input type="radio" name="m" value="view" checked><span>Xem</span></label><label><input type="radio" name="m" value="copy"><span>Copy</span></label><label><input type="radio" name="m" value="run"><span>Chạy</span></label></div></div>
+        <svg id="svg" viewBox="0 0 600 150" preserveAspectRatio="none" aria-label="Biểu đồ 30 ngày"></svg>
+        <div class="ax"><span id="d0"></span><span id="d1"></span></div>
       </div>
-    </div>
+      <h2>Script được chạy nhiều nhất</h2>
+      <div class="rows" id="top"></div>
+    </section>
 
-    <div class="tabs" id="tabs"></div>
-
-    <!-- Tổng quan -->
-    <div id="tab-overview">
-      <div class="stats" id="statTotals"></div>
-      <div class="card"><b>Lượt xem trang (30 ngày)</b><div class="bars" id="barsView"></div></div>
-      <div class="card"><b>Lượt copy (30 ngày)</b><div class="bars" id="barsCopy"></div></div>
-      <div class="card"><b>Lượt chạy raw (30 ngày)</b><div class="bars" id="barsRun"></div></div>
-      <h2>Script theo lượt chạy</h2>
-      <div id="topScripts"></div>
-    </div>
-
-    <!-- Hồ sơ -->
-    <div id="tab-profile" class="hidden card">
-      <label for="pName">Tên hiển thị</label><input id="pName" maxlength="60">
-      <label for="pBio">Giới thiệu (tối đa 500 ký tự)</label><textarea id="pBio" maxlength="500"></textarea>
-      <label for="pAvatar">Link avatar (https)</label><input id="pAvatar" placeholder="https://...">
-      <div class="actions"><button id="saveProfile" class="btn primary" type="button">Lưu hồ sơ</button></div>
-    </div>
-
-    <!-- Links -->
-    <div id="tab-links" class="hidden">
-      <div id="linkRows"></div>
-      <div class="actions">
-        <button id="addLink" class="btn" type="button">+ Thêm link</button>
-        <button id="saveLinks" class="btn primary" type="button">Lưu links</button>
-      </div>
-    </div>
-
-    <!-- Scripts -->
-    <div id="tab-scripts" class="hidden">
-      <div id="scriptList"></div>
-      <div class="actions"><button id="newScript" class="btn primary" type="button">+ Script mới</button></div>
-
-      <div id="scriptForm" class="hidden card" style="margin-top:16px">
-        <label for="sId">ID (dùng trong link raw, a-z 0-9 và dấu -)</label><input id="sId" maxlength="40">
-        <label for="sTitle">Tiêu đề</label><input id="sTitle" maxlength="80">
-        <div class="row">
-          <div><label for="sGame">Game</label><input id="sGame" maxlength="80"></div>
-          <div><label for="sStatus">Trạng thái</label>
-            <select id="sStatus">
-              <option value="working">Đang chạy</option>
-              <option value="patched">Đã bị patch</option>
-              <option value="outdated">Cũ</option>
-            </select></div>
+    <section class="view" id="v-profile" hidden>
+      <div class="head"><h1>Hồ sơ</h1><button class="btn pri save" id="sp">Lưu hồ sơ</button></div>
+      <div class="two">
+        <div>
+          <label for="pn" style="margin-top:0">Tên hiển thị</label><input id="pn" maxlength="60">
+          <label for="pb">Giới thiệu</label><textarea id="pb" maxlength="500"></textarea>
+          <label for="pa">Link ảnh đại diện</label><input id="pa" placeholder="https://" inputmode="url">
+          <p class="hint">Chỉ nhận link bắt đầu bằng https.</p>
         </div>
-        <label for="sDesc">Mô tả</label><textarea id="sDesc" maxlength="500"></textarea>
-        <label for="sCode">Code</label><textarea id="sCode" class="code" spellcheck="false"></textarea>
-        <label class="check"><input type="checkbox" id="sPub"> Công khai (hiện ở trang chính và tải được qua /raw)</label>
-        <div class="actions">
-          <button id="saveScript" class="btn primary" type="button">Lưu script</button>
-          <button id="copyCmd" class="btn" type="button">Copy loadstring</button>
-          <button id="delScript" class="btn danger" type="button">Xoá</button>
-          <button id="cancelScript" class="btn" type="button">Đóng</button>
+        <div class="pv"><small>Xem trước</small><img id="pi" alt="" hidden><b id="pvn"></b><p id="pvb"></p></div>
+      </div>
+    </section>
+
+    <section class="view" id="v-links" hidden>
+      <div class="head"><h1>Links</h1><button class="btn pri save" id="sl">Lưu links</button></div>
+      <div id="lrows"></div>
+      <button class="btn" id="al" style="margin-top:14px">Thêm link</button>
+    </section>
+
+    <section class="view" id="v-scripts" hidden>
+      <div class="head"><h1>Scripts</h1><button class="btn pri" id="ns">Tạo script</button></div>
+      <div class="split" id="split">
+        <div><input id="q" placeholder="Tìm theo tên hoặc ID" aria-label="Tìm script"><div class="rows" id="slist" style="margin-top:8px"></div></div>
+        <div class="editor" id="ed">
+          <div class="head"><button class="btn sm back" id="bk">Danh sách</button><h1 id="et" style="font-size:18px"></h1><button class="btn pri save" id="ss">Lưu script</button></div>
+          <label for="si" style="margin-top:0">ID (nằm trong link raw)</label><input id="si" maxlength="40" autocapitalize="off" spellcheck="false">
+          <label for="st">Tiêu đề</label><input id="st" maxlength="80">
+          <label for="sg">Game</label><input id="sg" maxlength="80">
+          <label>Trạng thái</label>
+          <div class="seg" id="sst"><label><input type="radio" name="s" value="working"><span><i class="dot ok"></i>Đang chạy</span></label><label><input type="radio" name="s" value="patched"><span><i class="dot bad"></i>Đã patch</span></label><label><input type="radio" name="s" value="outdated"><span><i class="dot warn"></i>Cũ</span></label></div>
+          <label for="sd">Mô tả</label><textarea id="sd" maxlength="500"></textarea>
+          <label for="sc">Code</label><textarea id="sc" class="code" spellcheck="false"></textarea>
+          <label class="sw"><input type="checkbox" id="sp2">Công khai trên trang bio</label>
+          <div id="cm" hidden><label>Lệnh để người dùng chạy</label><div class="cmd"><code id="cmt"></code><button class="btn sm" id="cc">Copy</button></div></div>
+          <button class="btn bad sm" id="ds" style="margin-top:26px" hidden>Xoá script</button>
         </div>
       </div>
-    </div>
-  </section>
-</main>
-<div id="toast" class="toast hidden"></div>
+    </section>
+  </main>
+</div>
+
+<dialog id="dlg"><p id="dmsg"></p><div class="ac"><button class="btn" value="no">Huỷ</button><button class="btn bad" value="yes">Xoá</button></div></dialog>
+<div id="toast" class="toast" hidden></div>
 
 <script>
-const $ = (s) => document.querySelector(s);
-const STATUS_LABEL = { working: 'Đang chạy', patched: 'Đã bị patch', outdated: 'Cũ' };
-let state = { profile: {}, links: [], scripts: [] };
-let editingId = null; // null = đang tạo mới
-let BIO_URL = '';
+const $=(s)=>document.querySelector(s),$$=(s)=>[...document.querySelectorAll(s)];
+const h=(t,p={},...k)=>{const e=document.createElement(t);for(const[a,v]of Object.entries(p)){if(a==='class')e.className=v;else if(a==='text')e.textContent=v;else if(a.startsWith('on'))e.addEventListener(a.slice(2),v);else e.setAttribute(a,v)}e.append(...k);return e};
+const ST={working:['Đang chạy','ok'],patched:['Đã patch','bad'],outdated:['Cũ','warn']};
+const TITLES={overview:'Tổng quan',profile:'Hồ sơ',links:'Links',scripts:'Scripts'};
+let S={profile:{},links:[],scripts:[],stats:{rows:[],since:''}},BIO='',M='view',base='',getter=null,dirty=false,cur='',skip=false,editId=null,days=[],by={};
 
-function el(tag, attrs = {}, ...kids) {
-  const e = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
-    if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else e.setAttribute(k, v);
-  }
-  kids.forEach((c) => e.append(c));
-  return e;
-}
-let toastTimer;
-function toast(msg, err) {
-  const t = $('#toast'); t.textContent = msg; t.className = 'toast' + (err ? ' err' : '');
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), 2600);
-}
+let tt;function toast(m,bad){const t=$('#toast');t.textContent=m;t.className='toast'+(bad?' bad':'');t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2400)}
+async function api(p,m='GET',b){const r=await fetch('/api/admin'+p,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});let d={};try{d=await r.json()}catch{}if(r.status===401){const e=new Error('401');e.s=401;throw e}if(!r.ok)throw new Error(d.error||'Lỗi '+r.status);return d}
+const run=async(f)=>{try{await f()}catch(e){if(e.s===401)gate();else toast(e.message,true)}};
+function ask(msg,ok){return new Promise(res=>{$('#dmsg').textContent=msg;$('#dlg .bad').textContent=ok;const d=$('#dlg');d.onclose=()=>res(d.returnValue==='yes');d.showModal()})}
 
-async function api(path, method = 'GET', body) {
-  const headers = { 'Content-Type': 'application/json' };
-  const res = await fetch('/api/admin' + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
-  let data = {}; try { data = await res.json(); } catch {}
-  if (res.status === 401) { const e = new Error('Unauthorized'); e.status = 401; throw e; }
-  if (!res.ok) throw new Error(data.error || 'Lỗi ' + res.status);
-  return data;
-}
-const run = async (fn) => { try { await fn(); } catch (e) { if (e.status === 401) showGate(); else toast(e.message, true); } };
+/* gate */
+function gate(){$('#app').hidden=true;$('#gate').hidden=false;$('#pw').focus()}
+$('#login').onclick=async()=>{$('#gerr').textContent='';const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('#pw').value})});const d=await r.json().catch(()=>({}));if(!r.ok){$('#gerr').textContent=d.error||'Lỗi '+r.status;return}$('#pw').value='';run(boot)};
+$('#pw').addEventListener('keydown',e=>{if(e.key==='Enter')$('#login').click()});
+$('#out').onclick=async()=>{await fetch('/api/logout',{method:'POST'});location.reload()};
 
-/* ---------- gate / boot ---------- */
-function showGate() { $('#app').classList.add('hidden'); $('#gate').classList.remove('hidden'); $('#pw').focus(); }
-$('#loginBtn').onclick = async () => {
-  $('#gateErr').textContent = '';
-  const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: $('#pw').value }) });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) { $('#gateErr').textContent = data.error || 'Lỗi ' + res.status; return; }
-  $('#pw').value = '';
-  run(boot);
-};
-$('#pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#loginBtn').click(); });
-$('#logout').onclick = async () => { await fetch('/api/logout', { method: 'POST' }); location.reload(); };
+/* dirty tracking */
+function track(g){getter=g;base=g();dirty=false;sync()}
+function sync(){$$('.save').forEach(b=>b.disabled=!dirty)}
+document.addEventListener('input',()=>{if(getter){dirty=getter()!==base;sync()}});
+addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
+addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();const b=$$('.save').find(x=>x.offsetParent&&!x.disabled);b&&b.click()}});
+const poke=()=>document.dispatchEvent(new Event('input'));
 
-async function boot() {
-  const me = await api('/me');
-  BIO_URL = me.bio_url || '';
-  if (BIO_URL) $('#viewSite').href = BIO_URL;
-  $('#gate').classList.add('hidden'); $('#app').classList.remove('hidden');
-  await reload();
-}
-async function reload() {
-  state = await api('/data');
-  renderProfile(); renderLinks(); renderScriptList();
-  await renderStats();
-}
+/* routing */
+addEventListener('hashchange',()=>{if(skip){skip=false;return}if(dirty&&location.hash!==cur){if(!confirm('Bỏ các thay đổi chưa lưu?')){skip=true;location.hash=cur;return}dirty=false}route()});
+function route(){const[,r='overview',id]=location.hash.split('/');const v=TITLES[r]?r:'overview';cur=location.hash;
+ $$('[data-r]').forEach(a=>a.classList.toggle('on',a.dataset.r===v));$$('.view').forEach(x=>x.hidden=x.id!=='v-'+v);
+ document.title=TITLES[v]+' · noir dash';getter=null;dirty=false;sync();
+ if(v==='profile')fillProfile();if(v==='links')fillLinks();if(v==='overview')drawOverview();if(v==='scripts')openScript(id);scrollTo(0,0)}
 
-/* ---------- tabs ---------- */
-const TABS = [['overview', 'Tổng quan'], ['profile', 'Hồ sơ'], ['links', 'Links'], ['scripts', 'Scripts']];
-TABS.forEach(([id, label], i) => {
-  const b = el('button', { class: 'tab' + (i ? '' : ' active'), type: 'button', text: label });
-  b.onclick = () => {
-    document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === b));
-    TABS.forEach(([k]) => $('#tab-' + k).classList.toggle('hidden', k !== id));
-  };
-  $('#tabs').append(b);
-});
+/* overview */
+const fmt=d=>d.slice(8)+'/'+d.slice(5,7);
+function prep(){days=[];const s=new Date(S.stats.since+'T00:00:00Z');for(let i=0;i<30;i++)days.push(new Date(s.getTime()+i*864e5).toISOString().slice(0,10));by={view:{},copy:{},run:{}};S.stats.rows.forEach(r=>by[r.kind]&&(by[r.kind][r.day]=r.count))}
+function drawOverview(){const sum=k=>days.reduce((a,d)=>a+(by[k][d]||0),0);
+ $('#strip').replaceChildren(...[['view','Lượt xem'],['copy','Lượt copy'],['run','Lượt chạy']].map(([k,l])=>h('div',{},h('span',{text:l}),h('b',{text:String(sum(k))}),h('em',{text:'hôm nay '+(by[k][days[29]]||0)}))));
+ chart();const mx=Math.max(1,...S.scripts.map(s=>s.runs));const t=[...S.scripts].sort((a,b)=>b.runs-a.runs).slice(0,6);
+ $('#top').replaceChildren(...(t.length?t.map(s=>h('div',{},h('div',{class:'t'},h('i',{text:s.title})),h('div',{class:'n',text:s.runs+' lượt chạy'}),h('div',{class:'bar'},Object.assign(h('i'),{style:'width:'+(s.runs/mx*100)+'%'})))):[h('div',{class:'empty',text:'Chưa có script nào được chạy.'})]))}
+function chart(){const v=days.map(d=>by[M][d]||0),mx=Math.max(1,...v),L=['view','copy','run'];
+ const P=v.map((n,i)=>[i*600/29,142-n/mx*132]);const line=P.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join('');
+ $('#svg').innerHTML='<path d="'+line+'L600 150L0 150Z" fill="#9370ff" fill-opacity=".14"/><path d="'+line+'" fill="none" stroke="#9370ff" stroke-width="2" vector-effect="non-scaling-stroke"/>';
+ $('#d0').textContent=fmt(days[0]);$('#d1').textContent='hôm nay';const tot=v.reduce((a,b)=>a+b,0);const base0='Cao nhất '+mx+'/ngày, tổng '+tot+' trong 30 ngày';$('#tip').textContent=base0;
+ const svg=$('#svg');svg.onpointermove=e=>{const r=svg.getBoundingClientRect(),i=Math.max(0,Math.min(29,Math.round((e.clientX-r.left)/r.width*29)));$('#tip').textContent=fmt(days[i])+': '+v[i]};svg.onpointerleave=()=>$('#tip').textContent=base0}
+$$('#metric input').forEach(i=>i.onchange=()=>{M=i.value;chart()});
 
-/* ---------- profile ---------- */
-function renderProfile() {
-  $('#pName').value = state.profile?.name || '';
-  $('#pBio').value = state.profile?.bio || '';
-  $('#pAvatar').value = state.profile?.avatar_url || '';
-}
-$('#saveProfile').onclick = () => run(async () => {
-  await api('/profile', 'PUT', { name: $('#pName').value, bio: $('#pBio').value, avatar_url: $('#pAvatar').value });
-  toast('Đã lưu hồ sơ ✓');
-});
+/* profile */
+const pv=()=>JSON.stringify([$('#pn').value,$('#pb').value,$('#pa').value]);
+function fillProfile(){const p=S.profile||{};$('#pn').value=p.name||'';$('#pb').value=p.bio||'';$('#pa').value=p.avatar_url||'';prev();track(pv)}
+function prev(){$('#pvn').textContent=$('#pn').value||'NOIR';$('#pvb').textContent=$('#pb').value;const a=$('#pa').value.trim(),i=$('#pi');if(/^https:\/\//.test(a)){i.src=a;i.hidden=false}else i.hidden=true}
+['#pn','#pb','#pa'].forEach(s=>$(s).addEventListener('input',prev));
+$('#sp').onclick=()=>run(async()=>{await api('/profile','PUT',{name:$('#pn').value,bio:$('#pb').value,avatar_url:$('#pa').value});S.profile={name:$('#pn').value.trim()||'NOIR',bio:$('#pb').value.trim(),avatar_url:$('#pa').value.trim()};track(pv);toast('Đã lưu hồ sơ')});
 
-/* ---------- links ---------- */
-function linkRow(l = {}) {
-  const icon = el('input', { placeholder: '🔗', maxlength: '8', style: 'max-width:64px' }); icon.value = l.icon || '';
-  const label = el('input', { placeholder: 'Tên (vd Discord)', maxlength: '40' }); label.value = l.label || '';
-  const url = el('input', { placeholder: 'https://...', maxlength: '500' }); url.value = l.url || '';
-  const up = el('button', { class: 'btn small fit', type: 'button', text: '↑' });
-  const dn = el('button', { class: 'btn small fit', type: 'button', text: '↓' });
-  const rm = el('button', { class: 'btn small fit danger', type: 'button', text: '✕' });
-  const row = el('div', { class: 'card' }, el('div', { class: 'row' }, icon, label), el('div', { style: 'height:8px' }), el('div', { class: 'row' }, url, up, dn, rm));
-  up.onclick = () => row.previousElementSibling && row.parentNode.insertBefore(row, row.previousElementSibling);
-  dn.onclick = () => row.nextElementSibling && row.parentNode.insertBefore(row.nextElementSibling, row);
-  rm.onclick = () => row.remove();
-  row._get = () => ({ icon: icon.value, label: label.value, url: url.value });
-  return row;
-}
-function renderLinks() {
-  $('#linkRows').replaceChildren(...state.links.map(linkRow));
-}
-$('#addLink').onclick = () => $('#linkRows').append(linkRow());
-$('#saveLinks').onclick = () => run(async () => {
-  await api('/links', 'PUT', { links: [...$('#linkRows').children].map((r) => r._get()) });
-  toast('Đã lưu links ✓');
-});
+/* links */
+function lrow(l={}){const ic=h('input',{placeholder:'Icon',maxlength:'8','aria-label':'Icon'}),lb=h('input',{placeholder:'Tên, ví dụ Discord',maxlength:'40','aria-label':'Tên'}),u=h('input',{class:'u',placeholder:'https://',maxlength:'500',inputmode:'url','aria-label':'URL'});
+ ic.value=l.icon||'';lb.value=l.label||'';u.value=l.url||'';
+ const r=h('div',{class:'lr'},ic,lb,h('div',{class:'ac'},h('button',{class:'btn sm','aria-label':'Lên',text:'↑',onclick:()=>{r.previousElementSibling&&r.parentNode.insertBefore(r,r.previousElementSibling);poke()}}),h('button',{class:'btn sm','aria-label':'Xuống',text:'↓',onclick:()=>{r.nextElementSibling&&r.parentNode.insertBefore(r.nextElementSibling,r);poke()}}),h('button',{class:'btn sm bad','aria-label':'Xoá link',text:'Xoá',onclick:()=>{r.remove();poke()}})),u);
+ r._g=()=>({icon:ic.value,label:lb.value,url:u.value});return r}
+const lv=()=>JSON.stringify($$('.lr').map(r=>r._g()));
+function fillLinks(){const b=$('#lrows');b.replaceChildren(...S.links.map(lrow));track(lv)}
+$('#al').onclick=()=>{const r=lrow();$('#lrows').append(r);r.querySelectorAll('input')[1].focus();poke()};
+$('#sl').onclick=()=>run(async()=>{const links=$$('.lr').map(r=>r._g());await api('/links','PUT',{links});S.links=links;track(lv);toast('Đã lưu links')});
 
-/* ---------- scripts ---------- */
-function renderScriptList() {
-  const box = $('#scriptList'); box.replaceChildren();
-  if (!state.scripts.length) { box.append(el('div', { class: 'empty', text: 'Chưa có script nào.' })); return; }
-  state.scripts.forEach((s) => {
-    const badges = el('div', { class: 'row fit' },
-      el('span', { class: 'badge ' + s.status, text: STATUS_LABEL[s.status] || s.status }),
-      s.published ? '' : el('span', { class: 'badge draft', text: 'Nháp' }));
-    const card = el('div', { class: 'card', style: 'cursor:pointer' },
-      el('div', { class: 'card-head' },
-        el('div', {}, el('h3', { text: s.title }), el('div', { class: 'meta', text: `${s.id} · ${s.runs} chạy · ${s.copies} copy` })),
-        badges));
-    card.onclick = () => openScript(s);
-    box.append(card);
-  });
-}
-function openScript(s) {
-  editingId = s ? s.id : null;
-  $('#sId').value = s?.id || ''; $('#sId').disabled = !!s;
-  $('#sTitle').value = s?.title || ''; $('#sGame').value = s?.game || '';
-  $('#sStatus').value = s?.status || 'working'; $('#sDesc').value = s?.description || '';
-  $('#sCode').value = s?.code || ''; $('#sPub').checked = s ? !!s.published : true;
-  $('#delScript').classList.toggle('hidden', !s); $('#copyCmd').classList.toggle('hidden', !s);
-  $('#scriptForm').classList.remove('hidden');
-  $('#scriptForm').scrollIntoView({ behavior: 'smooth' });
-}
-$('#newScript').onclick = () => openScript(null);
-$('#cancelScript').onclick = () => $('#scriptForm').classList.add('hidden');
-$('#saveScript').onclick = () => run(async () => {
-  const body = {
-    id: $('#sId').value.trim(), title: $('#sTitle').value, game: $('#sGame').value, status: $('#sStatus').value,
-    description: $('#sDesc').value, code: $('#sCode').value, published: $('#sPub').checked,
-  };
-  if (editingId) await api('/scripts/' + editingId, 'PUT', body); else await api('/scripts', 'POST', body);
-  toast('Đã lưu script ✓');
-  $('#scriptForm').classList.add('hidden');
-  await reload();
-});
-$('#delScript').onclick = () => run(async () => {
-  if (!confirm('Xoá script này? Không hoàn tác được.')) return;
-  await api('/scripts/' + editingId, 'DELETE');
-  toast('Đã xoá');
-  $('#scriptForm').classList.add('hidden');
-  await reload();
-});
-$('#copyCmd').onclick = async () => {
-  const cmd = `loadstring(game:HttpGet("${BIO_URL}/raw/${editingId}"))()`;
-  try { await navigator.clipboard.writeText(cmd); toast('Đã copy loadstring ✓'); } catch { toast('Trình duyệt chặn copy', true); }
-};
+/* scripts */
+function slist(){const q=$('#q').value.trim().toLowerCase(),b=$('#slist');const a=S.scripts.filter(s=>!q||(s.title+s.id).toLowerCase().includes(q));
+ if(!S.scripts.length){b.replaceChildren(h('div',{class:'empty'},'Chưa có script nào.',h('br'),h('button',{class:'btn pri',text:'Tạo script đầu tiên',onclick:()=>location.hash='#/scripts/new'})));return}
+ if(!a.length){b.replaceChildren(h('div',{class:'empty',text:'Không có script khớp.'}));return}
+ b.replaceChildren(...a.map(s=>h('button',{class:s.id===editId?'on':'',onclick:()=>location.hash='#/scripts/'+s.id},
+  h('div',{class:'t'},h('i',{class:'dot '+(ST[s.status]||ST.working)[1]}),h('i',{text:s.title}),s.published?'':h('span',{class:'tag',text:'Nháp'})),
+  h('div',{class:'m',text:s.id}),h('div',{class:'n',text:s.runs+' chạy, '+s.copies+' copy'}))))}
+$('#q').addEventListener('input',slist);
+const sv=()=>JSON.stringify([$('#si').value,$('#st').value,$('#sg').value,($('#sst input:checked')||{}).value,$('#sd').value,$('#sc').value,$('#sp2').checked]);
+function openScript(id){const sp=$('#split');editId=id&&id!=='new'?id:null;
+ if(!id){sp.classList.remove('open');slist();return}
+ const s=editId?S.scripts.find(x=>x.id===editId):null;if(editId&&!s){location.hash='#/scripts';return}
+ $('#si').value=s?s.id:'';$('#si').disabled=!!s;$('#st').value=s?s.title:'';$('#sg').value=s?s.game:'';
+ $('#sst input[value='+(s?s.status:'working')+']').checked=true;$('#sd').value=s?s.description:'';$('#sc').value=s?s.code:'';$('#sp2').checked=s?!!s.published:true;
+ $('#et').textContent=s?s.title:'Script mới';$('#ds').hidden=$('#cm').hidden=!s;if(s)$('#cmt').textContent='loadstring(game:HttpGet("'+BIO+'/raw/'+s.id+'"))()';
+ sp.classList.add('open');slist();track(sv)}
+$('#ns').onclick=()=>location.hash='#/scripts/new';
+$('#bk').onclick=()=>location.hash='#/scripts';
+$('#ss').onclick=()=>run(async()=>{const nw=!editId,body={id:$('#si').value.trim(),title:$('#st').value,game:$('#sg').value,status:$('#sst input:checked').value,description:$('#sd').value,code:$('#sc').value,published:$('#sp2').checked};
+ if(nw)await api('/scripts','POST',body);else await api('/scripts/'+editId,'PUT',body);
+ await load();dirty=false;toast(nw?'Đã tạo script':'Đã lưu script');if(nw)location.hash='#/scripts/'+body.id;else openScript(editId)});
+$('#ds').onclick=()=>run(async()=>{if(!await ask('Xoá script "'+$('#st').value+'"? Link raw của nó sẽ ngừng hoạt động và không khôi phục được.','Xoá script'))return;
+ await api('/scripts/'+editId,'DELETE');await load();dirty=false;toast('Đã xoá script');location.hash='#/scripts'});
+$('#cc').onclick=async()=>{try{await navigator.clipboard.writeText($('#cmt').textContent);toast('Đã copy lệnh')}catch{toast('Trình duyệt chặn copy, hãy chọn và copy thủ công',true)}};
 
-/* ---------- stats ---------- */
-async function renderStats() {
-  const st = await api('/stats');
-  const days = [];
-  const start = new Date(st.since + 'T00:00:00Z');
-  for (let i = 0; i < 30; i++) days.push(new Date(start.getTime() + i * 86400e3).toISOString().slice(0, 10));
-  const byKind = { view: {}, copy: {}, run: {} };
-  st.rows.forEach((r) => { if (byKind[r.kind]) byKind[r.kind][r.day] = r.count; });
-  const sum = (k) => days.reduce((a, d) => a + (byKind[k][d] || 0), 0);
-
-  $('#statTotals').replaceChildren(...[['view', 'Lượt xem'], ['copy', 'Lượt copy'], ['run', 'Lượt chạy']].map(([k, label]) =>
-    el('div', { class: 'card stat' }, el('b', { text: String(sum(k)) }), el('span', { text: label + ' (30 ngày)' }))));
-
-  const bars = (id, k) => {
-    const max = Math.max(1, ...days.map((d) => byKind[k][d] || 0));
-    $(id).replaceChildren(...days.map((d) => {
-      const v = byKind[k][d] || 0;
-      const i = el('i', { title: `${d}: ${v}`, class: v ? '' : 'zero' });
-      i.style.height = Math.max(3, (v / max) * 100) + '%';
-      return i;
-    }));
-  };
-  bars('#barsView', 'view'); bars('#barsCopy', 'copy'); bars('#barsRun', 'run');
-
-  const top = [...state.scripts].sort((a, b) => b.runs - a.runs).slice(0, 8);
-  $('#topScripts').replaceChildren(...(top.length ? top.map((s) =>
-    el('div', { class: 'card' }, el('div', { class: 'card-head' }, el('b', { text: s.title }), el('span', { class: 'meta', text: `${s.runs} chạy · ${s.copies} copy` }))))
-    : [el('div', { class: 'empty', text: 'Chưa có dữ liệu.' })]));
-}
-
+/* boot */
+async function load(){const[d,st]=await Promise.all([api('/data'),api('/stats')]);S={profile:d.profile,links:d.links,scripts:d.scripts,stats:st};prep()}
+async function boot(){const me=await api('/me');BIO=me.bio_url||'';if(BIO){$('#site').href=$('#site2').href=BIO}else{$('#site').hidden=$('#site2').hidden=true}
+ await load();$('#gate').hidden=true;$('#app').hidden=false;route()}
 run(boot);
 </script>
 </body>
