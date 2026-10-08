@@ -9,14 +9,18 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap">
 <link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/look.js"></script>
 </head>
 <body>
 <section id="gate" class="gate" hidden>
-  <h1>Đăng nhập</h1>
-  <label for="pw">Mật khẩu admin</label>
-  <input id="pw" type="password" autocomplete="current-password">
-  <button id="login" class="btn pri" style="margin-top:14px;width:100%">Vào dashboard</button>
-  <p id="gerr" class="err" role="alert"></p>
+  <div class="gcard">
+    <div class="gb">noir<small>dash</small></div>
+    <p class="hint" style="margin:4px 0 20px">Đăng nhập để quản lý trang bio của bạn.</p>
+    <label for="pw" style="margin-top:0">Mật khẩu admin</label>
+    <input id="pw" type="password" autocomplete="current-password">
+    <button id="login" class="btn pri" style="margin-top:14px;width:100%">Vào dashboard</button>
+    <p id="gerr" class="err" role="alert"></p>
+  </div>
 </section>
 
 <div id="app" class="shell" hidden>
@@ -28,6 +32,7 @@
       <a href="#/links" data-r="links"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1"/></svg>Links</a>
       <a href="#/scripts" data-r="scripts"><svg viewBox="0 0 24 24"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"/></svg>Scripts</a>
       <a href="#/tabs" data-r="tabs"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>Tabs</a>
+      <a href="#/settings" data-r="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6l2.1 2.1m0-12.8l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>Cài đặt</a>
     </nav>
     <div class="foot"><a id="site" href="#" target="_blank" rel="noopener">Mở trang bio</a><button id="out">Đăng xuất</button></div>
   </aside>
@@ -63,6 +68,29 @@
       <div class="head"><h1>Links</h1><button class="btn pri save" id="sl">Lưu links</button></div>
       <div id="lrows"></div>
       <button class="btn" id="al" style="margin-top:14px">Thêm link</button>
+    </section>
+
+    <section class="view" id="v-settings" hidden>
+      <div class="head"><h1>Cài đặt</h1><button class="btn pri save" id="sset">Lưu cài đặt</button></div>
+      <h2 style="margin-top:0">Màu chủ đạo</h2>
+      <div class="swrow"><span id="swatches" style="display:contents"></span><input type="color" id="ac" aria-label="Chọn màu tuỳ ý"></div>
+      <h2>Hình nền</h2>
+      <label style="margin-top:0">Chế độ</label>
+      <div class="seg" id="md"><label><input type="radio" name="md" value="fixed"><span>Cố định</span></label><label><input type="radio" name="md" value="random"><span>Ngẫu nhiên mỗi lần vào</span></label><label><input type="radio" name="md" value="slide"><span>Trình chiếu</span></label></div>
+      <div id="ivw" hidden><label for="iv">Đổi ảnh sau mỗi</label><select id="iv"><option value="10">10 giây</option><option value="30">30 giây</option><option value="60">1 phút</option><option value="300">5 phút</option></select></div>
+      <p class="hint">Ngẫu nhiên và trình chiếu dùng toàn bộ hình trong danh sách. Trình chiếu bắt đầu từ hình đang chọn. Muốn tắt hẳn nền thì chọn Cố định rồi chọn "Không dùng hình nền".</p>
+      <div class="rows" id="bglist" style="margin-top:8px"></div>
+      <div class="bgform"><input id="bn" placeholder="Tên hình nền" maxlength="40" aria-label="Tên hình nền"><input id="bu" placeholder="https://link-anh" inputmode="url" aria-label="Link ảnh"><button class="btn" id="bsave" type="button">Thêm hình nền</button><button class="btn" id="bcancel" type="button" hidden>Huỷ</button></div>
+      <p class="hint">Hình nền mới thêm sẽ được chọn ngay. Chỉ nhận link bắt đầu bằng https.</p>
+      <h2>Hiệu ứng</h2>
+      <label for="rb" style="margin-top:0">Độ mờ của ảnh nền <b id="vb"></b></label><input type="range" id="rb" min="0" max="24">
+      <label for="rd">Độ tối phủ lên ảnh <b id="vd"></b></label><input type="range" id="rd" min="0" max="90">
+      <label>Chuyển động</label>
+      <div class="seg" id="an"><label><input type="radio" name="an" value="none"><span>Tĩnh</span></label><label><input type="radio" name="an" value="zoom"><span>Zoom chậm</span></label></div>
+      <label class="sw"><input type="checkbox" id="gl">Thẻ kính mờ (hợp với ảnh nền)</label>
+      <label>Áp dụng hình nền cho</label>
+      <div class="seg" id="ap"><label><input type="radio" name="ap" value="both"><span>Cả hai trang</span></label><label><input type="radio" name="ap" value="bio"><span>Chỉ trang bio</span></label><label><input type="radio" name="ap" value="dash"><span>Chỉ dashboard</span></label></div>
+      <p class="hint">Màu chủ đạo luôn áp dụng cho cả hai trang.</p>
     </section>
 
     <section class="view" id="v-tabs" hidden>
@@ -103,8 +131,8 @@
 const $=(s)=>document.querySelector(s),$$=(s)=>[...document.querySelectorAll(s)];
 const h=(t,p={},...k)=>{const e=document.createElement(t);for(const[a,v]of Object.entries(p)){if(a==='class')e.className=v;else if(a==='text')e.textContent=v;else if(a.startsWith('on'))e.addEventListener(a.slice(2),v);else e.setAttribute(a,v)}e.append(...k);return e};
 const ST={working:['Đang chạy','ok'],patched:['Đã patch','bad'],outdated:['Cũ','warn']};
-const TITLES={overview:'Tổng quan',profile:'Hồ sơ',links:'Links',scripts:'Scripts',tabs:'Tabs'};
-let S={profile:{},links:[],scripts:[],tabs:[],stats:{rows:[],since:''}},BIO='',RAW='',M='view',base='',getter=null,dirty=false,cur='',skip=false,editId=null,days=[],by={};
+const TITLES={overview:'Tổng quan',profile:'Hồ sơ',links:'Links',scripts:'Scripts',tabs:'Tabs',settings:'Cài đặt'};
+let S={profile:{},links:[],scripts:[],tabs:[],settings:{},stats:{rows:[],since:''}},BIO='',RAW='',M='view',base='',getter=null,dirty=false,cur='',skip=false,editId=null,days=[],by={};
 
 let tt;function toast(m,bad){const t=$('#toast');t.textContent=m;t.className='toast'+(bad?' bad':'');t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2400)}
 async function api(p,m='GET',b){const r=await fetch('/api/admin'+p,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});let d={};try{d=await r.json()}catch{}if(r.status===401){const e=new Error('401');e.s=401;throw e}if(!r.ok)throw new Error(d.error||'Lỗi '+r.status);return d}
@@ -127,10 +155,10 @@ const poke=()=>document.dispatchEvent(new Event('input'));
 
 /* routing */
 addEventListener('hashchange',()=>{if(skip){skip=false;return}if(dirty&&location.hash!==cur){if(!confirm('Bỏ các thay đổi chưa lưu?')){skip=true;location.hash=cur;return}dirty=false}route()});
-function route(){const[,r='overview',id]=location.hash.split('/');const v=TITLES[r]?r:'overview';cur=location.hash;
+function route(){const[,r='overview',id]=location.hash.split('/');const v=TITLES[r]?r:'overview';cur=location.hash;if(v!=='settings'&&S.settings)applyLook(mergeSet(S.settings),'dash');
  $$('[data-r]').forEach(a=>a.classList.toggle('on',a.dataset.r===v));$$('.view').forEach(x=>x.hidden=x.id!=='v-'+v);
  document.title=TITLES[v]+' · noir dash';getter=null;dirty=false;sync();
- if(v==='profile')fillProfile();if(v==='links')fillLinks();if(v==='overview')drawOverview();if(v==='scripts')openScript(id);if(v==='tabs')drawTabs();scrollTo(0,0)}
+ if(v==='profile')fillProfile();if(v==='links')fillLinks();if(v==='overview')drawOverview();if(v==='scripts')openScript(id);if(v==='tabs')drawTabs();if(v==='settings')fillSettings();scrollTo(0,0)}
 
 /* overview */
 const fmt=d=>d.slice(8)+'/'+d.slice(5,7);
@@ -196,10 +224,44 @@ function drawTabs(){$('#trows').replaceChildren(...S.tabs.map(t=>h('div',{},h('d
  h('button',{class:'btn sm bad',text:'Xoá',onclick:()=>run(async()=>{if(!await ask('Xoá tab "'+t.name+'"? Nội dung trong tab sẽ chuyển về tab đầu tiên cùng loại.','Xoá tab'))return;await api('/tabs/'+t.id,'DELETE');await load();drawTabs();toast('Đã xoá tab')})})))))}
 $('#at').onclick=()=>run(async()=>{const n=$('#tn').value.trim();if(!n){toast('Nhập tên tab trước',true);return}await api('/tabs','POST',{name:n,kind:$('#tk input:checked').value});$('#tn').value='';await load();drawTabs();toast('Đã tạo tab')});
 
+/* settings */
+const defSet=()=>({theme:{accent:'#9370ff'},bg:{active:'',mode:'fixed',interval:30,blur:0,dim:40,anim:'none',glass:false,apply:'both'},backgrounds:[]});
+const mergeSet=(s)=>{const d=defSet();s=s||{};return{theme:{...d.theme,...s.theme},bg:{...d.bg,...s.bg},backgrounds:Array.isArray(s.backgrounds)?s.backgrounds:[]}};
+const SWS=['#9370ff','#4f8cff','#2ec4b6','#5fd38d','#f0b429','#ef6b73','#ff6bd6'];
+let G=defSet(),editBg=null;
+const gv=()=>JSON.stringify(G),live=()=>applyLook(G,'dash');
+function fillSettings(){G=mergeSet(S.settings);resetBgForm();drawSet();track(gv)}
+function bgRow(id,name,url){const rd=h('input',{type:'radio',name:'bgsel',value:id,onchange:()=>{G.bg.active=id;live();poke()}});rd.checked=G.bg.active===id;
+ const th=h('span',{class:'th'});if(url)th.style.backgroundImage='url("'+url.replace(/"/g,'%22')+'")';
+ return h('div',{},h('label',{class:'bgl'},rd,th,h('span',{text:name})),url?h('div',{},
+  h('button',{class:'btn sm',type:'button',text:'Sửa',onclick:()=>{editBg=id;$('#bn').value=name;$('#bu').value=url;$('#bsave').textContent='Cập nhật';$('#bcancel').hidden=false;$('#bn').focus()}}),' ',
+  h('button',{class:'btn sm bad',type:'button',text:'Xoá',onclick:()=>{G.backgrounds=G.backgrounds.filter(x=>x.id!==id);if(G.bg.active===id)G.bg.active='';drawSet();live();poke()}})):'')}
+function drawSet(){
+ $('#swatches').replaceChildren(...SWS.map(c=>{const b=h('button',{class:'sw1'+(G.theme.accent.toLowerCase()===c?' on':''),type:'button','aria-label':'Màu '+c,onclick:()=>{G.theme.accent=c;drawSet();live();poke()}});b.style.background=c;return b}));
+ $('#ac').value=G.theme.accent;
+ $('#bglist').replaceChildren(bgRow('','Không dùng hình nền',''),...G.backgrounds.map(b=>bgRow(b.id,b.name,b.url)));
+ $('#rb').value=G.bg.blur;$('#vb').textContent=G.bg.blur+'px';$('#rd').value=G.bg.dim;$('#vd').textContent=G.bg.dim+'%';
+ $('#gl').checked=G.bg.glass;$$('#an input').forEach(i=>i.checked=i.value===G.bg.anim);$$('#ap input').forEach(i=>i.checked=i.value===G.bg.apply);$$('#md input').forEach(i=>i.checked=i.value===G.bg.mode);$('#iv').value=String(G.bg.interval);$('#ivw').hidden=G.bg.mode!=='slide'}
+function resetBgForm(){editBg=null;$('#bn').value=$('#bu').value='';$('#bsave').textContent='Thêm hình nền';$('#bcancel').hidden=true}
+$('#bcancel').onclick=resetBgForm;
+$('#bsave').onclick=()=>{const n=$('#bn').value.trim(),u=$('#bu').value.trim();if(!n||!/^https:\/\//.test(u)){toast('Nhập tên và link ảnh bắt đầu bằng https',true);return}
+ if(editBg){const x=G.backgrounds.find(b=>b.id===editBg);x.name=n;x.url=u}else{const id='b'+Date.now().toString(36);G.backgrounds.push({id,name:n,url:u});G.bg.active=id}
+ resetBgForm();drawSet();live();poke()};
+$('#ac').oninput=()=>{G.theme.accent=$('#ac').value;$$('.sw1').forEach(b=>b.classList.remove('on'));live()};
+$('#rb').oninput=()=>{G.bg.blur=+$('#rb').value;$('#vb').textContent=G.bg.blur+'px';live()};
+$('#rd').oninput=()=>{G.bg.dim=+$('#rd').value;$('#vd').textContent=G.bg.dim+'%';live()};
+$('#gl').onchange=()=>{G.bg.glass=$('#gl').checked;live();poke()};
+$$('#an input').forEach(i=>i.onchange=()=>{G.bg.anim=i.value;live();poke()});
+$$('#ap input').forEach(i=>i.onchange=()=>{G.bg.apply=i.value;live();poke()});
+$$('#md input').forEach(i=>i.onchange=()=>{G.bg.mode=i.value;$('#ivw').hidden=i.value!=='slide';live();poke()});
+$('#iv').onchange=()=>{G.bg.interval=+$('#iv').value;live();poke()};
+$('#sset').onclick=()=>run(async()=>{await api('/settings','PUT',G);S.settings=JSON.parse(gv());track(gv);toast('Đã lưu cài đặt')});
+
 /* boot */
-async function load(){const[d,st]=await Promise.all([api('/data'),api('/stats')]);S={profile:d.profile,links:d.links,scripts:d.scripts,tabs:d.tabs,stats:st};prep()}
+async function load(){const[d,st]=await Promise.all([api('/data'),api('/stats')]);S={profile:d.profile,links:d.links,scripts:d.scripts,tabs:d.tabs,settings:d.settings,stats:st};prep()}
 async function boot(){const me=await api('/me');BIO=me.bio_url||'';RAW=me.raw_url||'';if(BIO){$('#site').href=$('#site2').href=BIO}else{$('#site').hidden=$('#site2').hidden=true}
- await load();$('#gate').hidden=true;$('#app').hidden=false;route()}
+ await load();applyLook(mergeSet(S.settings),'dash');$('#gate').hidden=true;$('#app').hidden=false;route()}
+fetch('/api/theme').then(r=>r.json()).then(s=>applyLook(mergeSet(s),'dash')).catch(()=>{});
 run(boot);
 </script>
 </body>
