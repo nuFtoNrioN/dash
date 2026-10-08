@@ -1,5 +1,3 @@
-# WORKER ADMIN: https://dash.<subdomain>.workers.dev
-# Đăng nhập bằng mật khẩu. Mật khẩu và khoá phiên là SECRET, đặt trong dashboard Cloudflare, KHÔNG ghi vào file này.
 name = "dash"
 main = "src/index.js"
 compatibility_date = "2026-08-01"
@@ -12,7 +10,7 @@ run_worker_first = true
 [[d1_databases]]
 binding = "DB"
 database_name = "noir-personal"
-database_id = "DIEN_ID_SAU_KHI_TAO_D1"   # cùng ID với bên bio
+database_id = "b8cd55bc-4360-4fad-92c2-0da3baf2d3b7"
 
 [vars]
-BIO_URL = "https://bio.noirnotfun.workers.dev"   # đổi nếu URL bio của bạn khác
+BIO_URL = "https://bio.noirnotfun.workers.dev"
