@@ -34,6 +34,7 @@ function today(offsetDays = 0) {
   return new Date(t).toISOString().slice(0, 10);
 }
 
+// ---------- đăng nhập bằng mật khẩu + cookie phiên ----------
 const COOKIE = 'noir_session';
 const SESSION_DAYS = 30;
 const MAX_FAILS = 5;
@@ -59,6 +60,7 @@ async function safeEqual(a, b) {
   return diff === 0;
 }
 
+// Chưa đặt đủ secret thì đóng hoàn toàn
 const configured = (env) =>
   typeof env.ADMIN_PASSWORD === 'string' && env.ADMIN_PASSWORD.length >= 12 &&
   typeof env.SESSION_SECRET === 'string' && env.SESSION_SECRET.length >= 32;
@@ -78,6 +80,7 @@ function getCookie(request, name) {
   return m ? m[1] : null;
 }
 
+// Trả về định danh admin, hoặc null nếu KHÔNG hợp lệ (đóng mặc định)
 async function authenticate(request, env) {
   if (env.DEV_ADMIN_BYPASS === '1') return 'dev@local';
   if (!configured(env)) return null;
@@ -124,6 +127,7 @@ function logout(request, url) {
   return json({ ok: true }, 200, { 'Set-Cookie': `${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0` });
 }
 
+// ---------- admin API ----------
 const str = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const httpsUrl = (v) => {
   try { const u = new URL(v); return u.protocol === 'https:' ? u.href : null; } catch { return null; }
@@ -147,15 +151,16 @@ async function admin(request, env, url) {
   const path = url.pathname.slice('/api/admin'.length);
 
   try {
-    if (path === '/me' && method === 'GET') return json({ who, bio_url: (env.BIO_URL || '').replace(/\/$/, '') });
+    if (path === '/me' && method === 'GET') return json({ who, bio_url: (env.BIO_URL || '').replace(/\/$/, ''), raw_url: (env.RAW_URL || '').replace(/\/$/, '') });
 
     if (path === '/data' && method === 'GET') {
-      const [p, l, s] = await env.DB.batch([
+      const [p, l, s, t] = await env.DB.batch([
         env.DB.prepare('SELECT name, bio, avatar_url FROM profile WHERE id = 1'),
-        env.DB.prepare('SELECT label, url, icon FROM links ORDER BY sort, id'),
+        env.DB.prepare('SELECT label, url, icon, tab_id FROM links ORDER BY sort, id'),
         env.DB.prepare('SELECT * FROM scripts ORDER BY updated_at DESC'),
+        env.DB.prepare('SELECT id, name, kind FROM tabs ORDER BY sort, id'),
       ]);
-      return json({ profile: p.results[0], links: l.results, scripts: s.results });
+      return json({ profile: p.results[0], links: l.results, scripts: s.results, tabs: t.results });
     }
 
     if (path === '/stats' && method === 'GET') {
@@ -183,7 +188,7 @@ async function admin(request, env, url) {
         const label = str(x.label, 40);
         const u = httpsUrl(str(x.url, 500));
         if (!label || !u) throw new HttpError(400, `Link #${i + 1}: cần tên và URL https hợp lệ`);
-        stmts.push(env.DB.prepare('INSERT INTO links (label, url, icon, sort) VALUES (?, ?, ?, ?)').bind(label, u, str(x.icon, 8), i));
+        stmts.push(env.DB.prepare('INSERT INTO links (label, url, icon, sort, tab_id) VALUES (?, ?, ?, ?, ?)').bind(label, u, str(x.icon, 8), i, Number.isInteger(x.tab_id) && x.tab_id >= 0 ? x.tab_id : 0));
       });
       await env.DB.batch(stmts);
       return json({ ok: true });
@@ -197,8 +202,8 @@ async function admin(request, env, url) {
       const now = Date.now();
       try {
         await env.DB.prepare(
-          'INSERT INTO scripts (id, title, description, game, status, code, published, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        ).bind(id, f.title, f.description, f.game, f.status, f.code, f.published, now, now).run();
+          'INSERT INTO scripts (id, title, description, game, image_url, tab_id, status, code, published, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        ).bind(id, f.title, f.description, f.game, f.image_url, f.tab_id, f.status, f.code, f.published, now, now).run();
       } catch (e) {
         if (String(e).includes('UNIQUE')) throw new HttpError(409, 'ID này đã tồn tại');
         throw e;
@@ -210,13 +215,42 @@ async function admin(request, env, url) {
     if (m && method === 'PUT') {
       const f = scriptFields(await readJson(request));
       const r = await env.DB.prepare(
-        'UPDATE scripts SET title = ?, description = ?, game = ?, status = ?, code = ?, published = ?, updated_at = ? WHERE id = ?'
-      ).bind(f.title, f.description, f.game, f.status, f.code, f.published, Date.now(), m[1]).run();
+        'UPDATE scripts SET title = ?, description = ?, game = ?, image_url = ?, tab_id = ?, status = ?, code = ?, published = ?, updated_at = ? WHERE id = ?'
+      ).bind(f.title, f.description, f.game, f.image_url, f.tab_id, f.status, f.code, f.published, Date.now(), m[1]).run();
       if (!r.meta.changes) throw new HttpError(404, 'Không tìm thấy script');
       return json({ ok: true });
     }
     if (m && method === 'DELETE') {
       await env.DB.prepare('DELETE FROM scripts WHERE id = ?').bind(m[1]).run();
+      return json({ ok: true });
+    }
+
+    if (path === '/tabs' && method === 'POST') {
+      const b = await readJson(request);
+      const name = str(b.name, 24);
+      if (!name) throw new HttpError(400, 'Thiếu tên tab');
+      const nx = await env.DB.prepare('SELECT COALESCE(MAX(sort), 0) + 1 AS n FROM tabs').first();
+      await env.DB.prepare('INSERT INTO tabs (name, kind, sort) VALUES (?, ?, ?)').bind(name, b.kind === 'script' ? 'script' : 'social', nx.n).run();
+      return json({ ok: true });
+    }
+    const tm = path.match(/^\/tabs\/(\d+)$/);
+    if (tm && method === 'PUT') {
+      const name = str((await readJson(request)).name, 24);
+      if (!name) throw new HttpError(400, 'Thiếu tên tab');
+      await env.DB.prepare('UPDATE tabs SET name = ? WHERE id = ?').bind(name, Number(tm[1])).run();
+      return json({ ok: true });
+    }
+    if (tm && method === 'DELETE') {
+      const id = Number(tm[1]);
+      const t = await env.DB.prepare('SELECT kind FROM tabs WHERE id = ?').bind(id).first();
+      if (!t) throw new HttpError(404, 'Không tìm thấy tab');
+      const c = await env.DB.prepare('SELECT COUNT(*) AS n FROM tabs WHERE kind = ?').bind(t.kind).first();
+      if (c.n <= 1) throw new HttpError(400, 'Mỗi loại cần ít nhất một tab');
+      await env.DB.batch([
+        env.DB.prepare('UPDATE links SET tab_id = 0 WHERE tab_id = ?').bind(id),
+        env.DB.prepare('UPDATE scripts SET tab_id = 0 WHERE tab_id = ?').bind(id),
+        env.DB.prepare('DELETE FROM tabs WHERE id = ?').bind(id),
+      ]);
       return json({ ok: true });
     }
 
@@ -234,5 +268,8 @@ function scriptFields(b) {
   if (!code.trim()) throw new HttpError(400, 'Thiếu code');
   if (code.length > 200000) throw new HttpError(400, 'Code quá dài (tối đa 200.000 ký tự)');
   const status = STATUSES.includes(b.status) ? b.status : 'working';
-  return { title, code, status, description: str(b.description, 500), game: str(b.game, 80), published: b.published ? 1 : 0 };
+  const image_url = b.image_url ? httpsUrl(str(b.image_url, 500)) : '';
+  if (image_url === null) throw new HttpError(400, 'Ảnh game phải là link https');
+  const tab_id = Number.isInteger(b.tab_id) && b.tab_id >= 0 ? b.tab_id : 0;
+  return { title, code, status, image_url, tab_id, description: str(b.description, 500), game: str(b.game, 80), published: b.published ? 1 : 0 };
 }
