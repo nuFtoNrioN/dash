@@ -86,3 +86,4 @@ dialog::backdrop{background:rgba(5,4,10,.7)}dialog p{margin-bottom:16px}dialog .
 .back{display:inline-flex}.toast{bottom:84px}.strip b{font-size:22px}.strip>div{padding:12px}
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+select{width:100%;background:var(--s1);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:inherit}.lr select{grid-column:1/3}
