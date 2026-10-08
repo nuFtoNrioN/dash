@@ -6,6 +6,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     try {
+      if (url.pathname === '/api/theme' && request.method === 'GET') return json(await getSettings(env));
       if (url.pathname.startsWith('/api/admin/')) return await admin(request, env, url);
       if (url.pathname === '/api/login' && request.method === 'POST') return await login(request, env, url);
       if (url.pathname === '/api/logout' && request.method === 'POST') return logout(request, url);
@@ -27,6 +28,13 @@ function json(data, status = 200, extra = {}) {
       ...extra,
     },
   });
+}
+
+async function getSettings(env) {
+  try {
+    const r = await env.DB.prepare('SELECT data FROM site_settings WHERE id = 1').first();
+    return r ? JSON.parse(r.data) : {};
+  } catch (e) { return {}; }
 }
 
 function today(offsetDays = 0) {
@@ -160,7 +168,7 @@ async function admin(request, env, url) {
         env.DB.prepare('SELECT * FROM scripts ORDER BY updated_at DESC'),
         env.DB.prepare('SELECT id, name, kind FROM tabs ORDER BY sort, id'),
       ]);
-      return json({ profile: p.results[0], links: l.results, scripts: s.results, tabs: t.results });
+      return json({ profile: p.results[0], links: l.results, scripts: s.results, tabs: t.results, settings: await getSettings(env) });
     }
 
     if (path === '/stats' && method === 'GET') {
@@ -222,6 +230,24 @@ async function admin(request, env, url) {
     }
     if (m && method === 'DELETE') {
       await env.DB.prepare('DELETE FROM scripts WHERE id = ?').bind(m[1]).run();
+      return json({ ok: true });
+    }
+
+    if (path === '/settings' && method === 'PUT') {
+      const b = await readJson(request);
+      const accent = /^#[0-9a-f]{6}$/i.test((b.theme && b.theme.accent) || '') ? b.theme.accent : '#9370ff';
+      const bgs = (Array.isArray(b.backgrounds) ? b.backgrounds : []).slice(0, 20)
+        .map((x) => ({ id: str(x.id, 16).replace(/[^a-z0-9]/gi, ''), name: str(x.name, 40), url: httpsUrl(str(x.url, 500)) }))
+        .filter((x) => x.id && x.name && x.url);
+      const g = b.bg || {};
+      const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, Math.round(Number(v) || 0)));
+      const data = {
+        theme: { accent }, backgrounds: bgs,
+        bg: { active: bgs.some((x) => x.id === g.active) ? g.active : '', blur: clamp(g.blur, 0, 24), dim: clamp(g.dim, 0, 90),
+              mode: ['random', 'slide'].includes(g.mode) ? g.mode : 'fixed', interval: clamp(g.interval || 30, 5, 300),
+              anim: g.anim === 'zoom' ? 'zoom' : 'none', glass: !!g.glass, apply: ['bio', 'dash'].includes(g.apply) ? g.apply : 'both' },
+      };
+      await env.DB.prepare('INSERT INTO site_settings (id, data) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data').bind(JSON.stringify(data)).run();
       return json({ ok: true });
     }
 
