@@ -14,3 +14,4 @@ database_id = "b8cd55bc-4360-4fad-92c2-0da3baf2d3b7"
 
 [vars]
 BIO_URL = "https://bio.noirnotfun.workers.dev"
+RAW_URL = "https://raw.noirnotfun.workers.dev"
