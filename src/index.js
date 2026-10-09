@@ -46,6 +46,11 @@ async function getLinks(env) {
   catch (e) { return (await env.DB.prepare('SELECT label, url, icon, tab_id FROM links ORDER BY sort, id').all()).results; }
 }
 
+async function adminScripts(env) {
+  try { return (await env.DB.prepare('SELECT * FROM scripts ORDER BY sort, updated_at DESC').all()).results; }
+  catch (e) { return (await env.DB.prepare('SELECT * FROM scripts ORDER BY updated_at DESC').all()).results; }
+}
+
 async function getSettings(env) {
   try {
     const r = await env.DB.prepare('SELECT data FROM site_settings WHERE id = 1').first();
@@ -178,17 +183,21 @@ async function admin(request, env, url) {
     if (path === '/me' && method === 'GET') return json({ who, bio_url: (env.BIO_URL || '').replace(/\/$/, ''), raw_url: (env.RAW_URL || '').replace(/\/$/, '') });
 
     if (path === '/data' && method === 'GET') {
-      const [s, t] = await env.DB.batch([
-        env.DB.prepare('SELECT * FROM scripts ORDER BY updated_at DESC'),
-        env.DB.prepare('SELECT id, name, kind FROM tabs ORDER BY sort, id'),
-      ]);
-      return json({ profile: await getProfile(env), links: await getLinks(env), scripts: s.results, tabs: t.results, settings: await getSettings(env) });
+      const t = await env.DB.prepare('SELECT id, name, kind FROM tabs ORDER BY sort, id').all();
+      return json({ profile: await getProfile(env), links: await getLinks(env), scripts: await adminScripts(env), tabs: t.results, settings: await getSettings(env) });
     }
 
     if (path === '/stats' && method === 'GET') {
-      const since = today(-29);
+      const days = Math.min(90, Math.max(7, Number(url.searchParams.get('days')) || 30));
+      const since = today(-(days - 1));
       const { results } = await env.DB.prepare('SELECT day, kind, count FROM daily_stats WHERE day >= ? ORDER BY day').bind(since).all();
-      return json({ since, today: today(), rows: results });
+      const agg = async (dim) => {
+        try { return (await env.DB.prepare('SELECT value, SUM(count) AS n FROM visit_stats WHERE dim = ? AND day >= ? GROUP BY value ORDER BY n DESC LIMIT 10').bind(dim, since).all()).results; }
+        catch (e) { return []; }
+      };
+      let per = [];
+      try { per = (await env.DB.prepare('SELECT day, script_id, kind, count FROM script_stats WHERE day >= ?').bind(since).all()).results; } catch (e) { /* chưa có bảng */ }
+      return json({ since, today: today(), days, rows: results, per, countries: await agg('country'), refs: await agg('ref'), devices: await agg('device') });
     }
 
     if (path === '/profile' && method === 'PUT') {
@@ -238,8 +247,8 @@ async function admin(request, env, url) {
       const now = Date.now();
       try {
         await env.DB.prepare(
-          'INSERT INTO scripts (id, title, description, game, image_url, tab_id, status, code, published, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        ).bind(id, f.title, f.description, f.game, f.image_url, f.tab_id, f.status, f.code, f.published, now, now).run();
+          'INSERT INTO scripts (id, title, description, game, image_url, tab_id, status, code, published, created_at, updated_at, version, changelog, sort) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT MIN(sort) FROM scripts), 0) - 1)'
+        ).bind(id, f.title, f.description, f.game, f.image_url, f.tab_id, f.status, f.code, f.published, now, now, f.version, f.changelog).run();
       } catch (e) {
         if (String(e).includes('UNIQUE')) throw new HttpError(409, 'ID này đã tồn tại');
         throw e;
@@ -251,8 +260,8 @@ async function admin(request, env, url) {
     if (m && method === 'PUT') {
       const f = scriptFields(await readJson(request));
       const r = await env.DB.prepare(
-        'UPDATE scripts SET title = ?, description = ?, game = ?, image_url = ?, tab_id = ?, status = ?, code = ?, published = ?, updated_at = ? WHERE id = ?'
-      ).bind(f.title, f.description, f.game, f.image_url, f.tab_id, f.status, f.code, f.published, Date.now(), m[1]).run();
+        'UPDATE scripts SET title = ?, description = ?, game = ?, image_url = ?, tab_id = ?, status = ?, code = ?, published = ?, updated_at = ?, version = ?, changelog = ? WHERE id = ?'
+      ).bind(f.title, f.description, f.game, f.image_url, f.tab_id, f.status, f.code, f.published, Date.now(), f.version, f.changelog, m[1]).run();
       if (!r.meta.changes) throw new HttpError(404, 'Không tìm thấy script');
       return json({ ok: true });
     }
@@ -270,7 +279,7 @@ async function admin(request, env, url) {
       const g = b.bg || {};
       const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, Math.round(Number(v) || 0)));
       const data = {
-        theme: { accent }, backgrounds: bgs,
+        theme: { accent }, backgrounds: bgs, layout: { links: b.layout && b.layout.links === 'grid' ? 'grid' : 'list' },
         bg: { active: bgs.some((x) => x.id === g.active) ? g.active : '', blur: clamp(g.blur, 0, 24), dim: clamp(g.dim, 0, 90),
               mode: ['random', 'slide'].includes(g.mode) ? g.mode : 'fixed', interval: clamp(g.interval || 30, 5, 300), trans: ['slide', 'zoom', 'ink', 'random'].includes(g.trans) ? g.trans : 'fade',
               anim: g.anim === 'zoom' ? 'zoom' : 'none', glass: !!g.glass, apply: ['bio', 'dash'].includes(g.apply) ? g.apply : 'both' },
@@ -311,9 +320,9 @@ async function admin(request, env, url) {
       b.scripts.forEach((x) => {
         const id = str(x.id, 40), code = typeof x.code === 'string' ? x.code : '';
         if (!ID_RE.test(id) || !str(x.title, 80) || !code || code.length > 200000) return;
-        st.push(env.DB.prepare('INSERT INTO scripts (id, title, description, game, image_url, tab_id, status, code, published, runs, copies, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        st.push(env.DB.prepare('INSERT INTO scripts (id, title, description, game, image_url, tab_id, status, code, published, runs, copies, created_at, updated_at, version, changelog, sort) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
           .bind(id, str(x.title, 80), str(x.description, 500), str(x.game, 80), x.image_url ? (httpsUrl(str(x.image_url, 500)) || '') : '', n(x.tab_id),
-            STATUSES.includes(x.status) ? x.status : 'working', code, x.published ? 1 : 0, n(x.runs), n(x.copies), n(x.created_at, Date.now()), n(x.updated_at, Date.now())));
+            STATUSES.includes(x.status) ? x.status : 'working', code, x.published ? 1 : 0, n(x.runs), n(x.copies), n(x.created_at, Date.now()), n(x.updated_at, Date.now()), str(x.version, 20), str(x.changelog, 300), n(x.sort)));
       });
       (Array.isArray(b.daily_stats) ? b.daily_stats : []).forEach((r) => {
         if (/^\d{4}-\d{2}-\d{2}$/.test(r.day || '') && ['view', 'copy', 'run'].includes(r.kind)) st.push(env.DB.prepare('INSERT INTO daily_stats (day, kind, count) VALUES (?, ?, ?)').bind(r.day, r.kind, Math.max(0, n(r.count))));
@@ -328,6 +337,14 @@ async function admin(request, env, url) {
       }
       await env.DB.batch(st);
       return json({ ok: true, scripts: b.scripts.length, links: b.links.length });
+    }
+
+    if ((path === '/scripts-order' || path === '/tabs-order') && method === 'PUT') {
+      const b = await readJson(request);
+      if (!Array.isArray(b.ids) || b.ids.length > 500) throw new HttpError(400, 'Danh sách không hợp lệ');
+      const isS = path === '/scripts-order';
+      await env.DB.batch(b.ids.map((id, i) => env.DB.prepare(isS ? 'UPDATE scripts SET sort = ? WHERE id = ?' : 'UPDATE tabs SET sort = ? WHERE id = ?').bind(i + 1, isS ? str(id, 40) : Number(id))));
+      return json({ ok: true });
     }
 
     if (path === '/tabs' && method === 'POST') {
@@ -376,5 +393,5 @@ function scriptFields(b) {
   const image_url = b.image_url ? httpsUrl(str(b.image_url, 500)) : '';
   if (image_url === null) throw new HttpError(400, 'Ảnh game phải là link https');
   const tab_id = Number.isInteger(b.tab_id) && b.tab_id >= 0 ? b.tab_id : 0;
-  return { title, code, status, image_url, tab_id, description: str(b.description, 500), game: str(b.game, 80), published: b.published ? 1 : 0 };
+  return { title, code, status, image_url, tab_id, version: str(b.version, 20), changelog: str(b.changelog, 300), description: str(b.description, 500), game: str(b.game, 80), published: b.published ? 1 : 0 };
 }
