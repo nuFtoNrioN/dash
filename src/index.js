@@ -41,6 +41,11 @@ async function getProfile(env) {
   return { ...ex, name: row.name, bio: row.bio, avatar_url: row.avatar_url };
 }
 
+async function getLinks(env) {
+  try { return (await env.DB.prepare('SELECT label, url, icon, tab_id, note FROM links ORDER BY sort, id').all()).results; }
+  catch (e) { return (await env.DB.prepare('SELECT label, url, icon, tab_id FROM links ORDER BY sort, id').all()).results; }
+}
+
 async function getSettings(env) {
   try {
     const r = await env.DB.prepare('SELECT data FROM site_settings WHERE id = 1').first();
@@ -173,12 +178,11 @@ async function admin(request, env, url) {
     if (path === '/me' && method === 'GET') return json({ who, bio_url: (env.BIO_URL || '').replace(/\/$/, ''), raw_url: (env.RAW_URL || '').replace(/\/$/, '') });
 
     if (path === '/data' && method === 'GET') {
-      const [l, s, t] = await env.DB.batch([
-        env.DB.prepare('SELECT label, url, icon, tab_id FROM links ORDER BY sort, id'),
+      const [s, t] = await env.DB.batch([
         env.DB.prepare('SELECT * FROM scripts ORDER BY updated_at DESC'),
         env.DB.prepare('SELECT id, name, kind FROM tabs ORDER BY sort, id'),
       ]);
-      return json({ profile: await getProfile(env), links: l.results, scripts: s.results, tabs: t.results, settings: await getSettings(env) });
+      return json({ profile: await getProfile(env), links: await getLinks(env), scripts: s.results, tabs: t.results, settings: await getSettings(env) });
     }
 
     if (path === '/stats' && method === 'GET') {
@@ -220,7 +224,7 @@ async function admin(request, env, url) {
         const label = str(x.label, 40);
         const u = httpsUrl(str(x.url, 500));
         if (!label || !u) throw new HttpError(400, `Link #${i + 1}: cần tên và URL https hợp lệ`);
-        stmts.push(env.DB.prepare('INSERT INTO links (label, url, icon, sort, tab_id) VALUES (?, ?, ?, ?, ?)').bind(label, u, str(x.icon, 24), i, Number.isInteger(x.tab_id) && x.tab_id >= 0 ? x.tab_id : 0));
+        stmts.push(env.DB.prepare('INSERT INTO links (label, url, icon, sort, tab_id, note) VALUES (?, ?, ?, ?, ?, ?)').bind(label, u, str(x.icon, 24), i, Number.isInteger(x.tab_id) && x.tab_id >= 0 ? x.tab_id : 0, str(x.note, 80)));
       });
       await env.DB.batch(stmts);
       return json({ ok: true });
