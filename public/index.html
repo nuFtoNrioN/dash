@@ -56,11 +56,24 @@
       <div class="two">
         <div>
           <label for="pn" style="margin-top:0">Tên hiển thị</label><input id="pn" maxlength="60">
+          <label for="pt">Câu giới thiệu ngắn</label><input id="pt" maxlength="60" placeholder="Ví dụ: Roblox scripter">
+          <div class="row2"><div><label for="pp">Đại từ</label><input id="pp" maxlength="20" placeholder="he/him"></div><div><label for="pl">Nơi ở</label><input id="pl" maxlength="40" placeholder="Việt Nam"></div></div>
+          <label for="ps">Trạng thái</label><input id="ps" maxlength="60" placeholder="Đang làm script mới">
           <label for="pb">Giới thiệu</label><textarea id="pb" maxlength="500"></textarea>
-          <label for="pa">Link ảnh đại diện</label><input id="pa" placeholder="https://" inputmode="url">
-          <p class="hint">Chỉ nhận link bắt đầu bằng https.</p>
+          <h2>Hình ảnh</h2>
+          <label for="pa" style="margin-top:0">Link ảnh đại diện (https)</label><input id="pa" placeholder="https://" inputmode="url">
+          <label for="pr">Link ảnh bìa (https)</label><input id="pr" placeholder="https://" inputmode="url">
+          <h2>Khung avatar</h2>
+          <div class="seg" id="frs"></div>
+          <div class="row2" style="margin-top:12px;align-items:center"><label class="sw" style="margin:0"><input type="checkbox" id="fa" checked>Dùng màu chủ đạo</label><input type="color" id="fc" aria-label="Màu khung"></div>
+          <label for="pf">Hoặc dùng ảnh khung riêng (PNG trong suốt, https)</label><input id="pf" placeholder="https://" inputmode="url">
+          <h2>Huy hiệu</h2>
+          <div class="row2" style="grid-template-columns:1fr auto"><input id="bd" maxlength="24" placeholder="Ví dụ: 🎮 Scripter" aria-label="Huy hiệu"><button class="btn" id="bda" type="button">Thêm</button></div>
+          <div class="chips" id="bdl"></div>
+          <h2>Hiệu ứng trang bio</h2>
+          <div class="seg" id="fxs"></div>
         </div>
-        <div class="pv"><small>Xem trước</small><img id="pi" alt="" hidden><b id="pvn"></b><p id="pvb"></p></div>
+        <div id="pvbox"></div>
       </div>
     </section>
 
@@ -77,7 +90,7 @@
       <h2>Hình nền</h2>
       <label style="margin-top:0">Chế độ</label>
       <div class="seg" id="md"><label><input type="radio" name="md" value="fixed"><span>Cố định</span></label><label><input type="radio" name="md" value="random"><span>Ngẫu nhiên mỗi lần vào</span></label><label><input type="radio" name="md" value="slide"><span>Trình chiếu</span></label></div>
-      <div id="ivw" hidden><label for="iv">Đổi ảnh sau mỗi</label><select id="iv"><option value="10">10 giây</option><option value="30">30 giây</option><option value="60">1 phút</option><option value="300">5 phút</option></select></div>
+      <div id="ivw" hidden><label>Hiệu ứng chuyển ảnh</label><div class="seg" id="tr"><label><input type="radio" name="tr" value="fade"><span>Mờ dần</span></label><label><input type="radio" name="tr" value="slide"><span>Trượt</span></label><label><input type="radio" name="tr" value="zoom"><span>Phóng to</span></label><label><input type="radio" name="tr" value="ink"><span>Loang mực</span></label><label><input type="radio" name="tr" value="random"><span>Ngẫu nhiên</span></label></div><label for="iv">Đổi ảnh sau mỗi</label><select id="iv"><option value="10">10 giây</option><option value="30">30 giây</option><option value="60">1 phút</option><option value="300">5 phút</option></select></div>
       <p class="hint">Ngẫu nhiên và trình chiếu dùng toàn bộ hình trong danh sách. Trình chiếu bắt đầu từ hình đang chọn. Muốn tắt hẳn nền thì chọn Cố định rồi chọn "Không dùng hình nền".</p>
       <div class="rows" id="bglist" style="margin-top:8px"></div>
       <div class="bgform"><input id="bn" placeholder="Tên hình nền" maxlength="40" aria-label="Tên hình nền"><input id="bu" placeholder="https://link-anh" inputmode="url" aria-label="Link ảnh"><button class="btn" id="bsave" type="button">Thêm hình nền</button><button class="btn" id="bcancel" type="button" hidden>Huỷ</button></div>
@@ -175,17 +188,30 @@ function chart(){const v=days.map(d=>by[M][d]||0),mx=Math.max(1,...v),L=['view',
 $$('#metric input').forEach(i=>i.onchange=()=>{M=i.value;chart()});
 
 /* profile */
-const pv=()=>JSON.stringify([$('#pn').value,$('#pb').value,$('#pa').value]);
-function fillProfile(){const p=S.profile||{};$('#pn').value=p.name||'';$('#pb').value=p.bio||'';$('#pa').value=p.avatar_url||'';prev();track(pv)}
-function prev(){$('#pvn').textContent=$('#pn').value||'NOIR';$('#pvb').textContent=$('#pb').value;const a=$('#pa').value.trim(),i=$('#pi');if(/^https:\/\//.test(a)){i.src=a;i.hidden=false}else i.hidden=true}
-['#pn','#pb','#pa'].forEach(s=>$(s).addEventListener('input',prev));
-$('#sp').onclick=()=>run(async()=>{await api('/profile','PUT',{name:$('#pn').value,bio:$('#pb').value,avatar_url:$('#pa').value});S.profile={name:$('#pn').value.trim()||'NOIR',bio:$('#pb').value.trim(),avatar_url:$('#pa').value.trim()};track(pv);toast('Đã lưu hồ sơ')});
+let BD=[];
+function mkSeg(box,name,list){box.replaceChildren(...list.map(([v,t])=>h('label',{},h('input',{type:'radio',name,value:v}),h('span',{text:t}))))}
+mkSeg($('#frs'),'fr',PF_FRAMES);mkSeg($('#fxs'),'fx',PF_FX);
+const pick=(box)=>($('#'+box+' input:checked')||{}).value;
+function readPR(){return{name:$('#pn').value,tagline:$('#pt').value,pronouns:$('#pp').value,location:$('#pl').value,status:$('#ps').value,bio:$('#pb').value,avatar_url:$('#pa').value.trim(),banner_url:$('#pr').value.trim(),frame:pick('frs')||'none',frame_color:$('#fa').checked?'':$('#fc').value,frame_url:$('#pf').value.trim(),effect:pick('fxs')||'none',badges:[...BD]}}
+const pv=()=>JSON.stringify(readPR());
+function prev(){$('#pvbox').replaceChildren(h('div',{class:'pvwrap'},buildProfile(readPR())))}
+function drawBd(){$('#bdl').replaceChildren(...BD.map((t,i)=>h('span',{class:'chip'},t,h('button',{type:'button','aria-label':'Xoá huy hiệu',text:'✕',onclick:()=>{BD.splice(i,1);drawBd();prev();poke()}}))))}
+function fillProfile(){const p=S.profile||{};$('#pn').value=p.name||'';$('#pt').value=p.tagline||'';$('#pp').value=p.pronouns||'';$('#pl').value=p.location||'';$('#ps').value=p.status||'';$('#pb').value=p.bio||'';$('#pa').value=p.avatar_url||'';$('#pr').value=p.banner_url||'';$('#pf').value=p.frame_url||'';
+ $$('#frs input').forEach(i=>i.checked=i.value===(p.frame||'none'));$$('#fxs input').forEach(i=>i.checked=i.value===(p.effect||'none'));$('#fa').checked=!p.frame_color;$('#fc').value=p.frame_color||'#9370ff';BD=[...(p.badges||[])];drawBd();prev();track(pv)}
+$('#v-profile').addEventListener('input',prev);
+$('#bda').onclick=()=>{const t=$('#bd').value.trim();if(!t)return;if(BD.length>=8){toast('Tối đa 8 huy hiệu',true);return}BD.push(t);$('#bd').value='';drawBd();prev();poke()};
+$('#sp').onclick=()=>run(async()=>{const p=readPR();await api('/profile','PUT',p);S.profile=p;track(pv);toast('Đã lưu hồ sơ')});
 
 /* links */
-function lrow(l={}){const ic=h('input',{placeholder:'Icon',maxlength:'8','aria-label':'Icon'}),lb=h('input',{placeholder:'Tên, ví dụ Discord',maxlength:'40','aria-label':'Tên'}),u=h('input',{class:'u',placeholder:'https://',maxlength:'500',inputmode:'url','aria-label':'URL'});
- ic.value=l.icon||'';lb.value=l.label||'';u.value=l.url||'';const sel=tabSel('social',l.tab_id);
- const r=h('div',{class:'lr'},ic,lb,h('div',{class:'ac'},h('button',{class:'btn sm','aria-label':'Lên',text:'↑',onclick:()=>{r.previousElementSibling&&r.parentNode.insertBefore(r,r.previousElementSibling);poke()}}),h('button',{class:'btn sm','aria-label':'Xuống',text:'↓',onclick:()=>{r.nextElementSibling&&r.parentNode.insertBefore(r.nextElementSibling,r);poke()}}),h('button',{class:'btn sm bad','aria-label':'Xoá link',text:'Xoá',onclick:()=>{r.remove();poke()}})),u,sel);
- r._g=()=>({icon:ic.value,label:lb.value,url:u.value,tab_id:Number(sel.value)});return r}
+const detect=(u)=>{try{const hn=new URL(u).hostname.replace(/^www\./,''),M={'discord.gg':'discord','discord.com':'discord','tiktok.com':'tiktok','youtube.com':'youtube','youtu.be':'youtube','github.com':'github','roblox.com':'roblox','facebook.com':'facebook','fb.com':'facebook','instagram.com':'instagram','x.com':'x','twitter.com':'x','t.me':'telegram','twitch.tv':'twitch','spotify.com':'spotify','steamcommunity.com':'steam','reddit.com':'reddit'},k=Object.keys(M).find(d=>hn===d||hn.endsWith('.'+d));return k?M[k]:''}catch{return ''}};
+function lrow(l={}){const slug=(l.icon||'').startsWith('si:')?l.icon.slice(3):'';
+ const pf=h('select',{'aria-label':'Nền tảng'},h('option',{value:'',text:'Nền tảng khác'}),...Object.entries(PLAT).map(([k,v])=>h('option',{value:k,text:v[0]})));pf.value=PLAT[slug]?slug:'';
+ const u=h('input',{class:'u',placeholder:'Dán link vào đây, ví dụ https://discord.gg/...',maxlength:'500',inputmode:'url','aria-label':'URL'}),lb=h('input',{placeholder:'Tên hiển thị',maxlength:'40','aria-label':'Tên'});
+ u.value=l.url||'';lb.value=l.label||'';const sel=tabSel('social',l.tab_id);
+ u.addEventListener('input',()=>{const k=detect(u.value);if(k&&!pf.value){pf.value=k;if(!lb.value)lb.value=PLAT[k][0]}});
+ pf.addEventListener('change',()=>{if(pf.value&&!lb.value)lb.value=PLAT[pf.value][0]});
+ const r=h('div',{class:'lr'},u,h('div',{class:'ac'},h('button',{class:'btn sm','aria-label':'Lên',text:'↑',onclick:()=>{r.previousElementSibling&&r.parentNode.insertBefore(r,r.previousElementSibling);poke()}}),h('button',{class:'btn sm','aria-label':'Xuống',text:'↓',onclick:()=>{r.nextElementSibling&&r.parentNode.insertBefore(r.nextElementSibling,r);poke()}}),h('button',{class:'btn sm bad','aria-label':'Xoá link',text:'Xoá',onclick:()=>{r.remove();poke()}})),pf,lb,sel);
+ r._g=()=>({icon:pf.value?'si:'+pf.value:'🔗',label:lb.value,url:u.value,tab_id:Number(sel.value)});return r}
 const lv=()=>JSON.stringify($$('.lr').map(r=>r._g()));
 function fillLinks(){const b=$('#lrows');b.replaceChildren(...S.links.map(lrow));track(lv)}
 $('#al').onclick=()=>{const r=lrow();$('#lrows').append(r);r.querySelectorAll('input')[1].focus();poke()};
@@ -225,7 +251,7 @@ function drawTabs(){$('#trows').replaceChildren(...S.tabs.map(t=>h('div',{},h('d
 $('#at').onclick=()=>run(async()=>{const n=$('#tn').value.trim();if(!n){toast('Nhập tên tab trước',true);return}await api('/tabs','POST',{name:n,kind:$('#tk input:checked').value});$('#tn').value='';await load();drawTabs();toast('Đã tạo tab')});
 
 /* settings */
-const defSet=()=>({theme:{accent:'#9370ff'},bg:{active:'',mode:'fixed',interval:30,blur:0,dim:40,anim:'none',glass:false,apply:'both'},backgrounds:[]});
+const defSet=()=>({theme:{accent:'#9370ff'},bg:{active:'',mode:'fixed',interval:30,trans:'fade',blur:0,dim:40,anim:'none',glass:false,apply:'both'},backgrounds:[]});
 const mergeSet=(s)=>{const d=defSet();s=s||{};return{theme:{...d.theme,...s.theme},bg:{...d.bg,...s.bg},backgrounds:Array.isArray(s.backgrounds)?s.backgrounds:[]}};
 const SWS=['#9370ff','#4f8cff','#2ec4b6','#5fd38d','#f0b429','#ef6b73','#ff6bd6'];
 let G=defSet(),editBg=null;
@@ -241,7 +267,7 @@ function drawSet(){
  $('#ac').value=G.theme.accent;
  $('#bglist').replaceChildren(bgRow('','Không dùng hình nền',''),...G.backgrounds.map(b=>bgRow(b.id,b.name,b.url)));
  $('#rb').value=G.bg.blur;$('#vb').textContent=G.bg.blur+'px';$('#rd').value=G.bg.dim;$('#vd').textContent=G.bg.dim+'%';
- $('#gl').checked=G.bg.glass;$$('#an input').forEach(i=>i.checked=i.value===G.bg.anim);$$('#ap input').forEach(i=>i.checked=i.value===G.bg.apply);$$('#md input').forEach(i=>i.checked=i.value===G.bg.mode);$('#iv').value=String(G.bg.interval);$('#ivw').hidden=G.bg.mode!=='slide'}
+ $('#gl').checked=G.bg.glass;$$('#an input').forEach(i=>i.checked=i.value===G.bg.anim);$$('#ap input').forEach(i=>i.checked=i.value===G.bg.apply);$$('#md input').forEach(i=>i.checked=i.value===G.bg.mode);$('#iv').value=String(G.bg.interval);$$('#tr input').forEach(i=>i.checked=i.value===G.bg.trans);$('#ivw').hidden=G.bg.mode!=='slide'}
 function resetBgForm(){editBg=null;$('#bn').value=$('#bu').value='';$('#bsave').textContent='Thêm hình nền';$('#bcancel').hidden=true}
 $('#bcancel').onclick=resetBgForm;
 $('#bsave').onclick=()=>{const n=$('#bn').value.trim(),u=$('#bu').value.trim();if(!n||!/^https:\/\//.test(u)){toast('Nhập tên và link ảnh bắt đầu bằng https',true);return}
@@ -254,6 +280,7 @@ $('#gl').onchange=()=>{G.bg.glass=$('#gl').checked;live();poke()};
 $$('#an input').forEach(i=>i.onchange=()=>{G.bg.anim=i.value;live();poke()});
 $$('#ap input').forEach(i=>i.onchange=()=>{G.bg.apply=i.value;live();poke()});
 $$('#md input').forEach(i=>i.onchange=()=>{G.bg.mode=i.value;$('#ivw').hidden=i.value!=='slide';live();poke()});
+$$('#tr input').forEach(i=>i.onchange=()=>{G.bg.trans=i.value;live();poke()});
 $('#iv').onchange=()=>{G.bg.interval=+$('#iv').value;live();poke()};
 $('#sset').onclick=()=>run(async()=>{await api('/settings','PUT',G);S.settings=JSON.parse(gv());track(gv);toast('Đã lưu cài đặt')});
 
