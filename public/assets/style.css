@@ -110,3 +110,8 @@ label b{color:var(--tx);font-weight:500;margin-left:6px}
 #pvbox{position:sticky;top:24px}.pvwrap{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--s1)}
 .lr{grid-template-columns:1fr 1fr auto}.lr .u{grid-column:1/3}.lr .ac{grid-row:1/3;grid-column:3}.lr>select:last-child{grid-column:1/3}
 @media(max-width:859px){#pvbox{position:static;order:-1}}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,76px);gap:10px}
+.tl{position:relative;width:76px;height:76px;border:1px solid var(--line);border-radius:12px;background:var(--s1);cursor:pointer;display:grid;place-items:center}
+.tl.on{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac)}
+.tla{width:40px;height:40px;border-radius:50%;background:var(--s2);display:grid;place-items:center;color:var(--mu)}
+.tl img{position:absolute;object-fit:contain;pointer-events:none}
