@@ -102,3 +102,11 @@ label b{color:var(--tx);font-weight:500;margin-left:6px}
 .th{width:56px;height:32px;border-radius:6px;background:var(--s2) center/cover;flex:none}
 .bgform{display:grid;grid-template-columns:1fr 1.5fr auto auto;gap:8px;margin-top:12px}
 @media(max-width:859px){.nav a{font-size:11px}.bgform{grid-template-columns:1fr}}
+.seg{flex-wrap:wrap}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 6px 3px 10px;border:1px solid var(--line);border-radius:99px;background:var(--s1)}
+.chip button{background:none;border:0;color:var(--mu);cursor:pointer}
+#pvbox{position:sticky;top:24px}.pvwrap{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--s1)}
+.lr{grid-template-columns:1fr 1fr auto}.lr .u{grid-column:1/3}.lr .ac{grid-row:1/3;grid-column:3}.lr>select:last-child{grid-column:1/3}
+@media(max-width:859px){#pvbox{position:static;order:-1}}
