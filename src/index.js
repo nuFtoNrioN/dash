@@ -192,9 +192,15 @@ async function admin(request, env, url) {
       const name = str(b.name, 60) || 'NOIR';
       const img = (v) => { const u = v ? httpsUrl(str(v, 500)) : ''; if (u === null) throw new HttpError(400, 'Link ảnh phải bắt đầu bằng https'); return u; };
       const FR = ['none', 'ring', 'neon', 'gradient', 'spin', 'pulse', 'double'], FX = ['none', 'snow', 'stars', 'rain', 'fireflies'];
+      const frames = (Array.isArray(b.frames) ? b.frames : []).slice(0, 20)
+        .map((x) => ({ id: str(x.id, 16).replace(/[^a-z0-9]/gi, ''), name: str(x.name, 40), url: httpsUrl(str(x.url, 500)) }))
+        .filter((x) => x.id && x.name && x.url);
+      const dc = str(b.deco, 24);
+      const deco = /^b:[a-z]{2,16}$/.test(dc) || frames.some((f) => 'c:' + f.id === dc) ? dc : 'none';
+      const frame_scale = Math.min(170, Math.max(100, Math.round(Number(b.frame_scale) || 130)));
       const extra = {
         tagline: str(b.tagline, 60), pronouns: str(b.pronouns, 20), location: str(b.location, 40), status: str(b.status, 60),
-        banner_url: img(b.banner_url), frame_url: img(b.frame_url),
+        banner_url: img(b.banner_url), deco, frames, frame_scale,
         frame: FR.includes(b.frame) ? b.frame : 'none',
         frame_color: /^#[0-9a-f]{6}$/i.test(b.frame_color || '') ? b.frame_color : '',
         effect: FX.includes(b.effect) ? b.effect : 'none',
