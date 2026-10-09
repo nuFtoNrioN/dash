@@ -64,9 +64,14 @@
           <label for="pa" style="margin-top:0">Link ảnh đại diện (https)</label><input id="pa" placeholder="https://" inputmode="url">
           <label for="pr">Link ảnh bìa (https)</label><input id="pr" placeholder="https://" inputmode="url">
           <h2>Khung avatar</h2>
+          <div class="tiles" id="tiles"></div>
+          <label for="fs">Kích thước khung <b id="fsv"></b></label><input type="range" id="fs" min="100" max="170">
+          <label>Thêm khung của bạn (ảnh PNG, WebP hoặc GIF nền trong suốt)</label>
+          <div class="bgform"><input id="dn" placeholder="Tên khung" maxlength="40" aria-label="Tên khung"><input id="du" placeholder="https://link-anh-khung" inputmode="url" aria-label="Link ảnh khung"><button class="btn" id="dsave" type="button">Thêm khung</button><button class="btn" id="dcancel" type="button" hidden>Huỷ</button></div>
+          <div class="rows" id="dfl" style="margin-top:8px"></div>
+          <h2>Viền màu (tuỳ chọn, dùng cùng khung)</h2>
           <div class="seg" id="frs"></div>
-          <div class="row2" style="margin-top:12px;align-items:center"><label class="sw" style="margin:0"><input type="checkbox" id="fa" checked>Dùng màu chủ đạo</label><input type="color" id="fc" aria-label="Màu khung"></div>
-          <label for="pf">Hoặc dùng ảnh khung riêng (PNG trong suốt, https)</label><input id="pf" placeholder="https://" inputmode="url">
+          <div class="row2" style="margin-top:12px;align-items:center"><label class="sw" style="margin:0"><input type="checkbox" id="fa" checked>Dùng màu chủ đạo</label><input type="color" id="fc" aria-label="Màu viền"></div>
           <h2>Huy hiệu</h2>
           <div class="row2" style="grid-template-columns:1fr auto"><input id="bd" maxlength="24" placeholder="Ví dụ: 🎮 Scripter" aria-label="Huy hiệu"><button class="btn" id="bda" type="button">Thêm</button></div>
           <div class="chips" id="bdl"></div>
@@ -188,19 +193,34 @@ function chart(){const v=days.map(d=>by[M][d]||0),mx=Math.max(1,...v),L=['view',
 $$('#metric input').forEach(i=>i.onchange=()=>{M=i.value;chart()});
 
 /* profile */
-let BD=[];
+let BD=[],FRM=[],DEC='none',editDf=null;
 function mkSeg(box,name,list){box.replaceChildren(...list.map(([v,t])=>h('label',{},h('input',{type:'radio',name,value:v}),h('span',{text:t}))))}
 mkSeg($('#frs'),'fr',PF_FRAMES);mkSeg($('#fxs'),'fx',PF_FX);
 const pick=(box)=>($('#'+box+' input:checked')||{}).value;
-function readPR(){return{name:$('#pn').value,tagline:$('#pt').value,pronouns:$('#pp').value,location:$('#pl').value,status:$('#ps').value,bio:$('#pb').value,avatar_url:$('#pa').value.trim(),banner_url:$('#pr').value.trim(),frame:pick('frs')||'none',frame_color:$('#fa').checked?'':$('#fc').value,frame_url:$('#pf').value.trim(),effect:pick('fxs')||'none',badges:[...BD]}}
+function readPR(){return{name:$('#pn').value,tagline:$('#pt').value,pronouns:$('#pp').value,location:$('#pl').value,status:$('#ps').value,bio:$('#pb').value,avatar_url:$('#pa').value.trim(),banner_url:$('#pr').value.trim(),frame:pick('frs')||'none',frame_color:$('#fa').checked?'':$('#fc').value,deco:DEC,frames:FRM.map(f=>({...f})),frame_scale:+$('#fs').value,effect:pick('fxs')||'none',badges:[...BD]}}
 const pv=()=>JSON.stringify(readPR());
 function prev(){$('#pvbox').replaceChildren(h('div',{class:'pvwrap'},buildProfile(readPR())))}
 function drawBd(){$('#bdl').replaceChildren(...BD.map((t,i)=>h('span',{class:'chip'},t,h('button',{type:'button','aria-label':'Xoá huy hiệu',text:'✕',onclick:()=>{BD.splice(i,1);drawBd();prev();poke()}}))))}
-function fillProfile(){const p=S.profile||{};$('#pn').value=p.name||'';$('#pt').value=p.tagline||'';$('#pp').value=p.pronouns||'';$('#pl').value=p.location||'';$('#ps').value=p.status||'';$('#pb').value=p.bio||'';$('#pa').value=p.avatar_url||'';$('#pr').value=p.banner_url||'';$('#pf').value=p.frame_url||'';
+function fillProfile(){const p=S.profile||{};$('#pn').value=p.name||'';$('#pt').value=p.tagline||'';$('#pp').value=p.pronouns||'';$('#pl').value=p.location||'';$('#ps').value=p.status||'';$('#pb').value=p.bio||'';$('#pa').value=p.avatar_url||'';$('#pr').value=p.banner_url||'';DEC=p.deco||'none';FRM=(p.frames||[]).map(f=>({...f}));$('#fs').value=p.frame_scale||130;resetDf();drawFrames();
  $$('#frs input').forEach(i=>i.checked=i.value===(p.frame||'none'));$$('#fxs input').forEach(i=>i.checked=i.value===(p.effect||'none'));$('#fa').checked=!p.frame_color;$('#fc').value=p.frame_color||'#9370ff';BD=[...(p.badges||[])];drawBd();prev();track(pv)}
 $('#v-profile').addEventListener('input',prev);
 $('#bda').onclick=()=>{const t=$('#bd').value.trim();if(!t)return;if(BD.length>=8){toast('Tối đa 8 huy hiệu',true);return}BD.push(t);$('#bd').value='';drawBd();prev();poke()};
 $('#sp').onclick=()=>run(async()=>{const p=readPR();await api('/profile','PUT',p);S.profile=p;track(pv);toast('Đã lưu hồ sơ')});
+
+/* khung avatar */
+function tile(id,name,url){const t=h('button',{class:'tl'+(DEC===id?' on':''),type:'button',title:name,'aria-label':name,onclick:()=>{DEC=id;drawFrames();prev();poke()}},h('span',{class:'tla',text:url?'':'∅'}));
+ if(url){const o=h('img',{src:url,alt:''});o.style.width=o.style.height=($('#fs').value/130*52)+'px';t.append(o)}return t}
+function drawFrames(){$('#fsv').textContent=$('#fs').value+'%';
+ $('#tiles').replaceChildren(tile('none','Không',''),...PF_DECOS.map(d=>tile('b:'+d.id,d.name,d.uri)),...FRM.map(f=>tile('c:'+f.id,f.name,f.url)));
+ $('#dfl').replaceChildren(...FRM.map(f=>h('div',{},h('div',{class:'t'},h('i',{text:f.name})),h('div',{class:'n'},
+  h('button',{class:'btn sm',type:'button',text:'Sửa',onclick:()=>{editDf=f.id;$('#dn').value=f.name;$('#du').value=f.url;$('#dsave').textContent='Cập nhật';$('#dcancel').hidden=false;$('#dn').focus()}}),' ',
+  h('button',{class:'btn sm bad',type:'button',text:'Xoá',onclick:()=>{FRM=FRM.filter(z=>z.id!==f.id);if(DEC==='c:'+f.id)DEC='none';drawFrames();prev();poke()}})))))}
+function resetDf(){editDf=null;$('#dn').value=$('#du').value='';$('#dsave').textContent='Thêm khung';$('#dcancel').hidden=true}
+$('#dcancel').onclick=resetDf;
+$('#dsave').onclick=()=>{const n=$('#dn').value.trim(),u=$('#du').value.trim();if(!n||!/^https:\/\//.test(u)){toast('Nhập tên và link ảnh bắt đầu bằng https',true);return}
+ if(editDf){const f=FRM.find(z=>z.id===editDf);f.name=n;f.url=u}else{if(FRM.length>=20){toast('Tối đa 20 khung',true);return}const id='f'+Date.now().toString(36);FRM.push({id,name:n,url:u});DEC='c:'+id}
+ resetDf();drawFrames();prev();poke()};
+$('#fs').addEventListener('input',drawFrames);
 
 /* links */
 const detect=(u)=>{try{const hn=new URL(u).hostname.replace(/^www\./,''),M={'discord.gg':'discord','discord.com':'discord','tiktok.com':'tiktok','youtube.com':'youtube','youtu.be':'youtube','github.com':'github','roblox.com':'roblox','facebook.com':'facebook','fb.com':'facebook','instagram.com':'instagram','x.com':'x','twitter.com':'x','t.me':'telegram','twitch.tv':'twitch','spotify.com':'spotify','steamcommunity.com':'steam','reddit.com':'reddit'},k=Object.keys(M).find(d=>hn===d||hn.endsWith('.'+d));return k?M[k]:''}catch{return ''}};
