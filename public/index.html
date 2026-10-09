@@ -40,6 +40,7 @@
   <main class="main">
     <section class="view" id="v-overview">
       <div class="head"><h1>Tổng quan</h1><a id="site2" class="btn sm" href="#" target="_blank" rel="noopener">Mở trang bio</a></div>
+      <div class="note" id="bkn" hidden></div>
       <div class="strip" id="strip"></div>
       <div class="chart">
         <div class="top"><span id="tip" class="hint" style="margin:0"></span>
@@ -109,6 +110,9 @@
       <label>Áp dụng hình nền cho</label>
       <div class="seg" id="ap"><label><input type="radio" name="ap" value="both"><span>Cả hai trang</span></label><label><input type="radio" name="ap" value="bio"><span>Chỉ trang bio</span></label><label><input type="radio" name="ap" value="dash"><span>Chỉ dashboard</span></label></div>
       <p class="hint">Màu chủ đạo luôn áp dụng cho cả hai trang.</p>
+      <h2>Sao lưu</h2>
+      <p class="hint" style="margin:0 0 12px">Tải về một file chứa hồ sơ, link, tab, script và thống kê. Nên tải định kỳ và cất trên máy hoặc Drive của bạn.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="bkd" type="button">Tải bản sao lưu</button><button class="btn" id="bkr" type="button">Khôi phục từ file</button><input type="file" id="bkf" accept="application/json,.json" hidden></div>
     </section>
 
     <section class="view" id="v-tabs" hidden>
@@ -181,7 +185,9 @@ function route(){const[,r='overview',id]=location.hash.split('/');const v=TITLES
 /* overview */
 const fmt=d=>d.slice(8)+'/'+d.slice(5,7);
 function prep(){days=[];const s=new Date(S.stats.since+'T00:00:00Z');for(let i=0;i<30;i++)days.push(new Date(s.getTime()+i*864e5).toISOString().slice(0,10));by={view:{},copy:{},run:{}};S.stats.rows.forEach(r=>by[r.kind]&&(by[r.kind][r.day]=r.count))}
-function drawOverview(){const sum=k=>days.reduce((a,d)=>a+(by[k][d]||0),0);
+function backupNote(){const t=+localStorage.getItem('noir_bk')||0,dd=t?Math.floor((Date.now()-t)/864e5):null,n=$('#bkn');n.hidden=dd!==null&&dd<14;
+ if(!n.hidden)n.replaceChildren(h('span',{text:dd===null?'Bạn chưa tải bản sao lưu nào về máy.':'Đã '+dd+' ngày chưa sao lưu.'}),h('a',{href:'#/settings',text:'Sao lưu ngay'}))}
+function drawOverview(){backupNote();const sum=k=>days.reduce((a,d)=>a+(by[k][d]||0),0);
  $('#strip').replaceChildren(...[['view','Lượt xem'],['copy','Lượt copy'],['run','Lượt chạy']].map(([k,l])=>h('div',{},h('span',{text:l}),h('b',{text:String(sum(k))}),h('em',{text:'hôm nay '+(by[k][days[29]]||0)}))));
  chart();const mx=Math.max(1,...S.scripts.map(s=>s.runs));const t=[...S.scripts].sort((a,b)=>b.runs-a.runs).slice(0,6);
  $('#top').replaceChildren(...(t.length?t.map(s=>h('div',{},h('div',{class:'t'},h('i',{text:s.title})),h('div',{class:'n',text:s.runs+' lượt chạy'}),h('div',{class:'bar'},Object.assign(h('i'),{style:'width:'+(s.runs/mx*100)+'%'})))):[h('div',{class:'empty',text:'Chưa có script nào được chạy.'})]))}
@@ -303,6 +309,15 @@ $$('#md input').forEach(i=>i.onchange=()=>{G.bg.mode=i.value;$('#ivw').hidden=i.
 $$('#tr input').forEach(i=>i.onchange=()=>{G.bg.trans=i.value;live();poke()});
 $('#iv').onchange=()=>{G.bg.interval=+$('#iv').value;live();poke()};
 $('#sset').onclick=()=>run(async()=>{await api('/settings','PUT',G);S.settings=JSON.parse(gv());track(gv);toast('Đã lưu cài đặt')});
+
+/* sao lưu */
+$('#bkd').onclick=()=>run(async()=>{const r=await fetch('/api/admin/backup');if(r.status===401){gate();return}if(!r.ok)throw new Error('Lỗi '+r.status);
+ const a=h('a',{href:URL.createObjectURL(await r.blob()),download:'noir-backup-'+new Date().toISOString().slice(0,10)+'.json'});document.body.append(a);a.click();a.remove();localStorage.setItem('noir_bk',Date.now());toast('Đã tạo bản sao lưu')});
+$('#bkr').onclick=()=>$('#bkf').click();
+$('#bkf').onchange=()=>run(async()=>{const f=$('#bkf').files[0];$('#bkf').value='';if(!f)return;
+ if(!await ask('Khôi phục từ "'+f.name+'"? Toàn bộ hồ sơ, link, tab và script hiện tại sẽ bị thay bằng nội dung trong file.','Khôi phục'))return;
+ const r=await fetch('/api/admin/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:await f.text()});const d=await r.json().catch(()=>({}));
+ if(r.status===401){gate();return}if(!r.ok)throw new Error(d.error||'Lỗi '+r.status);await load();dirty=false;toast('Đã khôi phục '+(d.scripts||0)+' script và '+(d.links||0)+' link');route()});
 
 /* boot */
 async function load(){const[d,st]=await Promise.all([api('/data'),api('/stats')]);S={profile:d.profile,links:d.links,scripts:d.scripts,tabs:d.tabs,settings:d.settings,stats:st};prep()}
