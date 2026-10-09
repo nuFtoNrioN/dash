@@ -116,3 +116,4 @@ label b{color:var(--tx);font-weight:500;margin-left:6px}
 .tla{width:40px;height:40px;border-radius:50%;background:var(--s2);display:grid;place-items:center;color:var(--mu)}
 .tl img{position:absolute;object-fit:contain;pointer-events:none}
 .lr .nt{grid-column:1/3}
+.note{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 14px;border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:10px;background:var(--s1);margin-bottom:16px;color:var(--mu)}.note a{color:var(--ac2);font-weight:500}
