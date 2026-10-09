@@ -1,4 +1,6 @@
-const TZ_OFFSET_HOURS = 7;
+// DASH worker: trang admin + API admin. ĐÓNG MẶC ĐỊNH:
+// chỉ nhận request có cookie phiên hợp lệ (sau khi đăng nhập bằng mật khẩu), còn lại trả 401.
+const TZ_OFFSET_HOURS = 7; // phải giống bên bio
 const STATUSES = ['working', 'patched', 'outdated'];
 const ID_RE = /^[a-z0-9-]{2,40}$/;
 
@@ -28,6 +30,15 @@ function json(data, status = 200, extra = {}) {
       ...extra,
     },
   });
+}
+
+async function getProfile(env) {
+  let row;
+  try { row = await env.DB.prepare('SELECT name, bio, avatar_url, extra FROM profile WHERE id = 1').first(); }
+  catch (e) { row = await env.DB.prepare('SELECT name, bio, avatar_url FROM profile WHERE id = 1').first(); }
+  if (!row) return { name: 'NOIR', bio: '', avatar_url: '' };
+  let ex = {}; try { ex = JSON.parse(row.extra || '{}'); } catch (e) { /* bỏ qua */ }
+  return { ...ex, name: row.name, bio: row.bio, avatar_url: row.avatar_url };
 }
 
 async function getSettings(env) {
@@ -162,13 +173,12 @@ async function admin(request, env, url) {
     if (path === '/me' && method === 'GET') return json({ who, bio_url: (env.BIO_URL || '').replace(/\/$/, ''), raw_url: (env.RAW_URL || '').replace(/\/$/, '') });
 
     if (path === '/data' && method === 'GET') {
-      const [p, l, s, t] = await env.DB.batch([
-        env.DB.prepare('SELECT name, bio, avatar_url FROM profile WHERE id = 1'),
+      const [l, s, t] = await env.DB.batch([
         env.DB.prepare('SELECT label, url, icon, tab_id FROM links ORDER BY sort, id'),
         env.DB.prepare('SELECT * FROM scripts ORDER BY updated_at DESC'),
         env.DB.prepare('SELECT id, name, kind FROM tabs ORDER BY sort, id'),
       ]);
-      return json({ profile: p.results[0], links: l.results, scripts: s.results, tabs: t.results, settings: await getSettings(env) });
+      return json({ profile: await getProfile(env), links: l.results, scripts: s.results, tabs: t.results, settings: await getSettings(env) });
     }
 
     if (path === '/stats' && method === 'GET') {
@@ -180,11 +190,19 @@ async function admin(request, env, url) {
     if (path === '/profile' && method === 'PUT') {
       const b = await readJson(request);
       const name = str(b.name, 60) || 'NOIR';
-      const avatar = b.avatar_url ? httpsUrl(str(b.avatar_url, 500)) : '';
-      if (avatar === null) throw new HttpError(400, 'Avatar phải là link https');
+      const img = (v) => { const u = v ? httpsUrl(str(v, 500)) : ''; if (u === null) throw new HttpError(400, 'Link ảnh phải bắt đầu bằng https'); return u; };
+      const FR = ['none', 'ring', 'neon', 'gradient', 'spin', 'pulse', 'double'], FX = ['none', 'snow', 'stars', 'rain', 'fireflies'];
+      const extra = {
+        tagline: str(b.tagline, 60), pronouns: str(b.pronouns, 20), location: str(b.location, 40), status: str(b.status, 60),
+        banner_url: img(b.banner_url), frame_url: img(b.frame_url),
+        frame: FR.includes(b.frame) ? b.frame : 'none',
+        frame_color: /^#[0-9a-f]{6}$/i.test(b.frame_color || '') ? b.frame_color : '',
+        effect: FX.includes(b.effect) ? b.effect : 'none',
+        badges: (Array.isArray(b.badges) ? b.badges : []).slice(0, 8).map((x) => str(x, 24)).filter(Boolean),
+      };
       await env.DB.prepare(
-        'INSERT INTO profile (id, name, bio, avatar_url) VALUES (1, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, bio = excluded.bio, avatar_url = excluded.avatar_url'
-      ).bind(name, str(b.bio, 500), avatar).run();
+        'INSERT INTO profile (id, name, bio, avatar_url, extra) VALUES (1, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, bio = excluded.bio, avatar_url = excluded.avatar_url, extra = excluded.extra'
+      ).bind(name, str(b.bio, 500), img(b.avatar_url), JSON.stringify(extra)).run();
       return json({ ok: true });
     }
 
@@ -196,7 +214,7 @@ async function admin(request, env, url) {
         const label = str(x.label, 40);
         const u = httpsUrl(str(x.url, 500));
         if (!label || !u) throw new HttpError(400, `Link #${i + 1}: cần tên và URL https hợp lệ`);
-        stmts.push(env.DB.prepare('INSERT INTO links (label, url, icon, sort, tab_id) VALUES (?, ?, ?, ?, ?)').bind(label, u, str(x.icon, 8), i, Number.isInteger(x.tab_id) && x.tab_id >= 0 ? x.tab_id : 0));
+        stmts.push(env.DB.prepare('INSERT INTO links (label, url, icon, sort, tab_id) VALUES (?, ?, ?, ?, ?)').bind(label, u, str(x.icon, 24), i, Number.isInteger(x.tab_id) && x.tab_id >= 0 ? x.tab_id : 0));
       });
       await env.DB.batch(stmts);
       return json({ ok: true });
@@ -244,7 +262,7 @@ async function admin(request, env, url) {
       const data = {
         theme: { accent }, backgrounds: bgs,
         bg: { active: bgs.some((x) => x.id === g.active) ? g.active : '', blur: clamp(g.blur, 0, 24), dim: clamp(g.dim, 0, 90),
-              mode: ['random', 'slide'].includes(g.mode) ? g.mode : 'fixed', interval: clamp(g.interval || 30, 5, 300),
+              mode: ['random', 'slide'].includes(g.mode) ? g.mode : 'fixed', interval: clamp(g.interval || 30, 5, 300), trans: ['slide', 'zoom', 'ink', 'random'].includes(g.trans) ? g.trans : 'fade',
               anim: g.anim === 'zoom' ? 'zoom' : 'none', glass: !!g.glass, apply: ['bio', 'dash'].includes(g.apply) ? g.apply : 'both' },
       };
       await env.DB.prepare('INSERT INTO site_settings (id, data) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data').bind(JSON.stringify(data)).run();
