@@ -279,6 +279,57 @@ async function admin(request, env, url) {
       return json({ ok: true });
     }
 
+    if (path === '/backup' && method === 'GET') {
+      const q = async (sql) => (await env.DB.prepare(sql).all()).results;
+      let profile;
+      try { profile = await env.DB.prepare('SELECT name, bio, avatar_url, extra FROM profile WHERE id = 1').first(); }
+      catch (e) { profile = await env.DB.prepare('SELECT name, bio, avatar_url FROM profile WHERE id = 1').first(); }
+      let settings = '';
+      try { const r = await env.DB.prepare('SELECT data FROM site_settings WHERE id = 1').first(); settings = r ? r.data : ''; } catch (e) { /* chưa có bảng */ }
+      const body = JSON.stringify({
+        version: 1, exported_at: new Date().toISOString(), profile, settings,
+        tabs: await q('SELECT id, name, kind, sort FROM tabs ORDER BY id'),
+        links: await getLinks(env),
+        scripts: await q('SELECT * FROM scripts ORDER BY created_at'),
+        daily_stats: await q('SELECT day, kind, count FROM daily_stats'),
+      });
+      return new Response(body, { headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Disposition': 'attachment; filename="noir-backup.json"' } });
+    }
+
+    if (path === '/restore' && method === 'POST') {
+      if (Number(request.headers.get('content-length') || 0) > 8e6) throw new HttpError(413, 'File quá lớn (tối đa 8 MB)');
+      let b;
+      try { b = await request.json(); } catch (e) { throw new HttpError(400, 'File không phải JSON hợp lệ'); }
+      if (!b || b.version !== 1 || !Array.isArray(b.scripts) || !Array.isArray(b.links) || !Array.isArray(b.tabs)) throw new HttpError(400, 'Đây không phải file sao lưu của NOIR');
+      const n = (v, d = 0) => (Number.isFinite(Number(v)) ? Math.trunc(Number(v)) : d);
+      const st = ['links', 'scripts', 'tabs', 'daily_stats'].map((t) => env.DB.prepare('DELETE FROM ' + t));
+      b.tabs.forEach((t) => st.push(env.DB.prepare('INSERT INTO tabs (id, name, kind, sort) VALUES (?, ?, ?, ?)').bind(n(t.id), str(t.name, 24) || 'Tab', t.kind === 'script' ? 'script' : 'social', n(t.sort))));
+      b.links.forEach((l, i) => {
+        const u = httpsUrl(str(l.url, 500)), label = str(l.label, 40);
+        if (u && label) st.push(env.DB.prepare('INSERT INTO links (label, url, icon, sort, tab_id, note) VALUES (?, ?, ?, ?, ?, ?)').bind(label, u, str(l.icon, 24), i, n(l.tab_id), str(l.note, 80)));
+      });
+      b.scripts.forEach((x) => {
+        const id = str(x.id, 40), code = typeof x.code === 'string' ? x.code : '';
+        if (!ID_RE.test(id) || !str(x.title, 80) || !code || code.length > 200000) return;
+        st.push(env.DB.prepare('INSERT INTO scripts (id, title, description, game, image_url, tab_id, status, code, published, runs, copies, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+          .bind(id, str(x.title, 80), str(x.description, 500), str(x.game, 80), x.image_url ? (httpsUrl(str(x.image_url, 500)) || '') : '', n(x.tab_id),
+            STATUSES.includes(x.status) ? x.status : 'working', code, x.published ? 1 : 0, n(x.runs), n(x.copies), n(x.created_at, Date.now()), n(x.updated_at, Date.now())));
+      });
+      (Array.isArray(b.daily_stats) ? b.daily_stats : []).forEach((r) => {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(r.day || '') && ['view', 'copy', 'run'].includes(r.kind)) st.push(env.DB.prepare('INSERT INTO daily_stats (day, kind, count) VALUES (?, ?, ?)').bind(r.day, r.kind, Math.max(0, n(r.count))));
+      });
+      if (b.profile && typeof b.profile === 'object') {
+        let extra = '{}';
+        try { if (typeof b.profile.extra === 'string') { JSON.parse(b.profile.extra); extra = b.profile.extra; } } catch (e) { /* bỏ qua */ }
+        st.push(env.DB.prepare('INSERT OR REPLACE INTO profile (id, name, bio, avatar_url, extra) VALUES (1, ?, ?, ?, ?)').bind(str(b.profile.name, 60) || 'NOIR', str(b.profile.bio, 500), str(b.profile.avatar_url, 500), extra));
+      }
+      if (typeof b.settings === 'string' && b.settings) {
+        try { JSON.parse(b.settings); st.push(env.DB.prepare('INSERT OR REPLACE INTO site_settings (id, data) VALUES (1, ?)').bind(b.settings)); } catch (e) { /* bỏ qua */ }
+      }
+      await env.DB.batch(st);
+      return json({ ok: true, scripts: b.scripts.length, links: b.links.length });
+    }
+
     if (path === '/tabs' && method === 'POST') {
       const b = await readJson(request);
       const name = str(b.name, 24);
