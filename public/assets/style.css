@@ -115,3 +115,4 @@ label b{color:var(--tx);font-weight:500;margin-left:6px}
 .tl.on{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac)}
 .tla{width:40px;height:40px;border-radius:50%;background:var(--s2);display:grid;place-items:center;color:var(--mu)}
 .tl img{position:absolute;object-fit:contain;pointer-events:none}
+.lr .nt{grid-column:1/3}
