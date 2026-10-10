@@ -11,8 +11,8 @@
 <title>noir dash</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap">
-<link rel="stylesheet" href="/assets/style.css?v=10">
-<script src="/assets/look.js?v=10"></script>
+<link rel="stylesheet" href="/assets/style.css?v=11">
+<script src="/assets/look.js?v=11"></script>
 </head>
 <body>
 <section id="gate" class="gate" hidden>
@@ -50,19 +50,31 @@
         <div class="seg" id="rng"><label><input type="radio" name="rg" value="7"><span>7 ngày</span></label><label><input type="radio" name="rg" value="30"><span>30 ngày</span></label><label><input type="radio" name="rg" value="90"><span>90 ngày</span></label></div>
         <select id="osel" aria-label="Lọc theo script"></select>
       </div>
-      <div class="strip" id="strip"></div>
+      <div class="strip s4" id="strip"></div>
+      <div class="mini3" id="kpi2"></div>
       <div class="chart">
         <div class="top"><span id="tip" class="hint" style="margin:0"></span>
-          <div class="seg" id="metric"><label><input type="radio" name="m" value="view" checked><span>Xem</span></label><label><input type="radio" name="m" value="copy"><span>Copy</span></label><label><input type="radio" name="m" value="run"><span>Chạy</span></label></div></div>
+          <div class="seg" id="metric"><label><input type="radio" name="m" value="view" checked><span>Xem</span></label><label><input type="radio" name="m" value="uv"><span>Khách</span></label><label><input type="radio" name="m" value="copy"><span>Copy</span></label><label><input type="radio" name="m" value="run"><span>Chạy</span></label></div></div>
         <svg id="svg" viewBox="0 0 600 150" preserveAspectRatio="none" aria-label="Biểu đồ theo ngày"></svg>
         <div class="ax"><span id="d0"></span><span id="d1"></span></div>
       </div>
-      <h2>Script được chạy nhiều nhất</h2>
-      <div class="rows" id="top"></div>
-      <div class="cols"><div><h2>Quốc gia</h2><div class="rows" id="lc"></div></div><div><h2>Nguồn truy cập</h2><div class="rows" id="lr"></div></div></div>
+      <div class="cols">
+        <div><h2>Giờ cao điểm</h2><div id="hrs"></div><p class="hint" id="hrt"></p></div>
+        <div><h2>Theo thứ trong tuần</h2><div id="wkd"></div></div>
+      </div>
+      <h2>Script</h2>
+      <div class="tbl" id="tscr"></div>
+      <p class="hint">Bấm vào một script để xem riêng. Mở là số lượt bấm xem chi tiết, tỉ lệ là copy trên mở.</p>
+      <h2>Nguồn truy cập</h2>
+      <div class="cols"><div><p class="sub">Theo nhóm</p><div class="rows" id="lgrp"></div></div><div><p class="sub">Nguồn cụ thể</p><div class="rows" id="lsrc"></div></div></div>
+      <h2>Vị trí</h2>
+      <div class="cols"><div><p class="sub">Quốc gia</p><div class="rows" id="lc"></div></div><div><p class="sub">Thành phố</p><div class="rows" id="lcity"></div></div></div>
       <h2>Thiết bị</h2>
-      <div class="rows" id="ld"></div>
-      <p class="hint">Quốc gia, nguồn và thiết bị chỉ được ghi từ khi bật bản cập nhật này, theo lượt xem trang bio.</p>
+      <div class="cols">
+        <div><p class="sub">Loại thiết bị</p><div class="rows" id="ld"></div><p class="sub">Hệ điều hành</p><div class="rows" id="los"></div></div>
+        <div><p class="sub">Trình duyệt</p><div class="rows" id="lbr"></div><p class="sub">Mẫu điện thoại</p><div class="rows" id="lmd"></div></div>
+      </div>
+      <p class="hint">Vị trí lấy theo địa chỉ mạng của khách, chỉ chính xác ở mức thành phố, không dùng GPS và không lưu địa chỉ IP. Mẫu điện thoại chỉ có với trình duyệt Chrome trên Android; iPhone hiển thị theo kích thước màn hình. Dữ liệu chi tiết chỉ có từ lúc bật bản cập nhật này. Mẹo: chia sẻ link dạng <b>?ref=ten-nhom</b> để biết mỗi nhóm đem về bao nhiêu khách.</p>
     </section>
 
     <section class="view" id="v-profile" hidden>
@@ -171,6 +183,6 @@
 <dialog id="dlg"><form method="dialog"><p id="dmsg"></p><div class="ac"><button class="btn" type="submit" value="no">Huỷ</button><button class="btn bad" type="submit" value="yes">Xoá</button></div></form></dialog>
 <div id="toast" class="toast" hidden></div>
 
-<script src="/assets/app.js?v=10"></script>
+<script src="/assets/app.js?v=11"></script>
 </body>
 </html>
