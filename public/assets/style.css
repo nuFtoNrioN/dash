@@ -1,4 +1,4 @@
-:root{--ver:10}
+:root{--ver:11}
 :root{color-scheme:dark;--bg:#14121c;--s1:#1b1925;--s2:#242134;--line:#302c43;--tx:#ece8f6;--mu:#9a94b0;--ac:#9370ff;--ac2:#b9a6ff;--ok:#5fd38d;--warn:#f0b429;--bad:#ef6b73;--ui:'Be Vietnam Pro',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace}
 *{box-sizing:border-box;margin:0}
 body{background:var(--bg);color:var(--tx);font:15px/1.5 var(--ui);-webkit-text-size-adjust:100%}
@@ -172,3 +172,24 @@ html[data-ui=mobile] .editor .head{position:sticky;top:0;z-index:2;margin:-16px 
 html[data-ui=mobile] .editor .head h1{font-size:17px}html[data-ui=mobile] .editor .head .save{display:none}
 html[data-ui=mobile] textarea.code{min-height:240px}
 
+
+/* tổng quan chi tiết */
+.strip.s4{grid-template-columns:repeat(4,1fr)}
+.strip small{display:block;color:var(--mu);font-size:12px;margin-top:2px}
+.dl{display:block}.dl.up{color:var(--ok)}.dl.dn{color:var(--bad)}
+.mini3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
+.mini{border:1px solid var(--line);border-radius:12px;background:var(--s1);padding:10px 14px}
+.mini span{display:block;color:var(--mu);font-size:12px}.mini b{font-size:20px;font-weight:600}
+.hb{display:flex;align-items:flex-end;gap:3px;height:96px}
+.hb i{flex:1;background:var(--ac);border-radius:3px 3px 0 0;min-height:2px;opacity:.8}.hb i.top{opacity:1}.hb i.z{background:var(--line);opacity:1}
+.hbx{display:flex;justify-content:space-between;color:var(--mu);font-size:12px;margin-top:4px;min-height:16px}
+.tbl{border:1px solid var(--line);border-radius:12px;background:var(--s1);overflow:hidden}
+.tbl>div{display:grid;grid-template-columns:minmax(0,1fr) 52px 52px 52px 60px;gap:8px;padding:10px 14px;align-items:center;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.tbl>div:last-child{border-bottom:0}.tbl .thd{color:var(--mu);font-size:12px}.tbl .r{text-align:right}
+.tbl .tt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tbl>div:not(.thd){cursor:pointer}.tbl>div.sel{background:var(--s2)}
+.sub{font-size:13px;color:var(--mu);margin:16px 0 2px;font-weight:500}.cols .sub:first-child{margin-top:0}
+html[data-ui=mobile] .strip.s4{grid-template-columns:1fr 1fr}
+html[data-ui=mobile] .strip.s4>div:nth-child(n+3){border-top:1px solid var(--line)}
+html[data-ui=mobile] .strip.s4>div:nth-child(3){border-left:0}
+html[data-ui=mobile] .mini{padding:8px 10px}html[data-ui=mobile] .mini span{font-size:11px}html[data-ui=mobile] .mini b{font-size:17px}
+html[data-ui=mobile] .tbl>div{grid-template-columns:minmax(0,1fr) 40px 40px 40px 48px;padding:10px;gap:4px}
