@@ -1,3 +1,4 @@
+window.LOOK_V = 10;
 // Giao diện dùng chung cho bio và dash: màu, hình nền (cố định/ngẫu nhiên/trình chiếu + hiệu ứng chuyển),
 // thẻ hồ sơ (khung avatar), hiệu ứng hạt, danh sách nền tảng mạng xã hội.
 (function () {
@@ -14,7 +15,7 @@
     '::selection{background:color-mix(in srgb,' + A + ' 40%,transparent)}',
     '.btn,.link,.tab,.scard,.nav a{transition:transform .12s,background .15s,border-color .15s,color .15s}',
     '.btn:active,.link:active,.tab:active,.scard:active,.nav a:active{transform:scale(.96)}',
-    '#panel>*,.view{animation:tabin .3s ease both}@keyframes tabin{from{opacity:0;transform:translateY(8px)}}',
+    '#panel>*{animation:tabin .3s ease backwards}.view{animation:viewin .25s ease backwards}@keyframes tabin{from{opacity:0;transform:translateY(8px)}}@keyframes viewin{from{opacity:0}}',
     '.link{gap:10px}.link:hover{border-color:var(--bc,' + A + ')}.lk-i{width:20px;height:20px;flex:none}',
     '@property --r{syntax:"<length>";inherits:false;initial-value:0px}',
     '#bgfx,#bgfx2,#bgdim{position:fixed;inset:0;pointer-events:none}#bgfx{z-index:-3}#bgfx2{z-index:-2;opacity:0}#bgdim{z-index:-1}',
