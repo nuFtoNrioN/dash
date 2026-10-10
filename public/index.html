@@ -11,8 +11,8 @@
 <title>noir dash</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap">
-<link rel="stylesheet" href="/assets/style.css?v=11">
-<script src="/assets/look.js?v=11"></script>
+<link rel="stylesheet" href="/assets/style.css?v=12">
+<script src="/assets/look.js?v=12"></script>
 </head>
 <body>
 <section id="gate" class="gate" hidden>
@@ -87,12 +87,12 @@
           <label for="ps">Trạng thái</label><input id="ps" maxlength="60" placeholder="Đang làm script mới">
           <label for="pb">Giới thiệu</label><textarea id="pb" maxlength="500"></textarea>
           <h2>Hình ảnh</h2>
-          <label for="pa" style="margin-top:0">Link ảnh đại diện (https)</label><input id="pa" placeholder="https://" inputmode="url">
-          <label for="pr">Link ảnh bìa (https)</label><input id="pr" placeholder="https://" inputmode="url">
+          <label for="pa" style="margin-top:0">Link ảnh hoặc video đại diện (https)</label><input id="pa" placeholder="https://" inputmode="url">
+          <label for="pr">Link ảnh hoặc video bìa (https)</label><input id="pr" placeholder="https://" inputmode="url">
           <h2>Khung avatar</h2>
           <div class="tiles" id="tiles"></div>
           <label for="fs">Kích thước khung <b id="fsv"></b></label><input type="range" id="fs" min="100" max="170">
-          <label>Thêm khung của bạn (ảnh PNG, WebP hoặc GIF nền trong suốt)</label>
+          <label>Thêm khung của bạn (ảnh PNG, WebP, GIF nền trong suốt; hoặc video .webm nền trong suốt, video .mp4 nền đen sẽ tự bỏ phần đen)</label>
           <div class="bgform"><input id="dn" placeholder="Tên khung" maxlength="40" aria-label="Tên khung"><input id="du" placeholder="https://link-anh-khung" inputmode="url" aria-label="Link ảnh khung"><button class="btn" id="dsave" type="button">Thêm khung</button><button class="btn" id="dcancel" type="button" hidden>Huỷ</button></div>
           <div class="rows" id="dfl" style="margin-top:8px"></div>
           <h2>Viền màu (tuỳ chọn, dùng cùng khung)</h2>
@@ -124,8 +124,8 @@
       <div id="ivw" hidden><label>Hiệu ứng chuyển ảnh</label><div class="seg" id="tr"><label><input type="radio" name="tr" value="fade"><span>Mờ dần</span></label><label><input type="radio" name="tr" value="slide"><span>Trượt</span></label><label><input type="radio" name="tr" value="zoom"><span>Phóng to</span></label><label><input type="radio" name="tr" value="ink"><span>Loang mực</span></label><label><input type="radio" name="tr" value="random"><span>Ngẫu nhiên</span></label></div><label for="iv">Đổi ảnh sau mỗi</label><select id="iv"><option value="10">10 giây</option><option value="30">30 giây</option><option value="60">1 phút</option><option value="300">5 phút</option></select></div>
       <p class="hint">Ngẫu nhiên và trình chiếu dùng toàn bộ hình trong danh sách. Trình chiếu bắt đầu từ hình đang chọn. Muốn tắt hẳn nền thì chọn Cố định rồi chọn "Không dùng hình nền".</p>
       <div class="rows" id="bglist" style="margin-top:8px"></div>
-      <div class="bgform"><input id="bn" placeholder="Tên hình nền" maxlength="40" aria-label="Tên hình nền"><input id="bu" placeholder="https://link-anh" inputmode="url" aria-label="Link ảnh"><button class="btn" id="bsave" type="button">Thêm hình nền</button><button class="btn" id="bcancel" type="button" hidden>Huỷ</button></div>
-      <p class="hint">Hình nền mới thêm sẽ được chọn ngay. Chỉ nhận link bắt đầu bằng https.</p>
+      <div class="bgform"><input id="bn" placeholder="Tên hình nền" maxlength="40" aria-label="Tên hình nền"><input id="bu" placeholder="https://link-anh-hoac-video.mp4" inputmode="url" aria-label="Link ảnh"><button class="btn" id="bsave" type="button">Thêm hình nền</button><button class="btn" id="bcancel" type="button" hidden>Huỷ</button></div>
+      <p class="hint">Hình nền mới thêm sẽ được chọn ngay. Chỉ nhận link bắt đầu bằng https. Hỗ trợ cả video .mp4 hoặc .webm (nên dưới 10 MB, dài 10 đến 15 giây, tự lặp lại). Khi bật chế độ tiết kiệm dữ liệu hoặc giảm chuyển động, video chỉ hiện khung hình đầu.</p>
       <h2>Hiệu ứng</h2>
       <label for="rb" style="margin-top:0">Độ mờ của ảnh nền <b id="vb"></b></label><input type="range" id="rb" min="0" max="24">
       <label for="rd">Độ tối phủ lên ảnh <b id="vd"></b></label><input type="range" id="rd" min="0" max="90">
@@ -183,6 +183,6 @@
 <dialog id="dlg"><form method="dialog"><p id="dmsg"></p><div class="ac"><button class="btn" type="submit" value="no">Huỷ</button><button class="btn bad" type="submit" value="yes">Xoá</button></div></form></dialog>
 <div id="toast" class="toast" hidden></div>
 
-<script src="/assets/app.js?v=11"></script>
+<script src="/assets/app.js?v=12"></script>
 </body>
 </html>
