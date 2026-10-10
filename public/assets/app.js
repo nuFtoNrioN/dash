@@ -1,5 +1,5 @@
 // Kiểm tra các file giao diện có cùng một bản không (tránh chép thiếu file)
-(function(){const c=getComputedStyle(document.documentElement).getPropertyValue('--ver').trim();if(c!=='10'||window.LOOK_V!==10){const b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99;padding:10px 14px;background:#f0b429;color:#14121c;font:14px system-ui';b.textContent='Các file giao diện chưa được cập nhật đồng bộ (index.html, style.css, app.js, look.js phải cùng bản 10). Hãy chép đủ rồi tải lại trang.';document.body.append(b)}})();
+(function(){const c=getComputedStyle(document.documentElement).getPropertyValue('--ver').trim();if(c!=='11'||window.LOOK_V!==11){const b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99;padding:10px 14px;background:#f0b429;color:#14121c;font:14px system-ui';b.textContent='Các file giao diện chưa được cập nhật đồng bộ (index.html, style.css, app.js, look.js phải cùng bản 11). Hãy chép đủ rồi tải lại trang.';document.body.append(b)}})();
 const $=(s)=>document.querySelector(s),$$=(s)=>[...document.querySelectorAll(s)];
 const h=(t,p={},...k)=>{const e=document.createElement(t);for(const[a,v]of Object.entries(p)){if(a==='class')e.className=v;else if(a==='text')e.textContent=v;else if(a.startsWith('on'))e.addEventListener(a.slice(2),v);else e.setAttribute(a,v)}e.append(...k);return e};
 const ST={working:['Đang chạy','ok'],patched:['Đã patch','bad'],outdated:['Cũ','warn']};
@@ -35,29 +35,51 @@ function route(){const[,r='overview',id]=location.hash.split('/');const v=TITLES
 /* overview */
 let RANGE=30,SEL='',pers={};
 const fmt=d=>d.slice(8)+'/'+d.slice(5,7);
-function prep(){const N=S.stats.days||30;days=[];const s=new Date(S.stats.since+'T00:00:00Z');for(let i=0;i<N;i++)days.push(new Date(s.getTime()+i*864e5).toISOString().slice(0,10));
- by={view:{},copy:{},run:{}};S.stats.rows.forEach(r=>by[r.kind]&&(by[r.kind][r.day]=r.count));
- pers={};(S.stats.per||[]).forEach(r=>{const o=pers[r.script_id]=pers[r.script_id]||{copy:{},run:{}};if(o[r.kind])o[r.kind][r.day]=r.count})}
-const series=k=>{const src=SEL?((pers[SEL]||{})[k]||{}):by[k];return days.map(d=>src[d]||0)};
-const flag=c=>String.fromCodePoint(...[...c].map(x=>127397+x.charCodeAt(0)));
-const LBL={country:c=>{if(!/^[A-Z]{2}$/.test(c)||c==='XX')return 'Không rõ';try{return flag(c)+' '+new Intl.DisplayNames(['vi'],{type:'region'}).of(c)}catch{return c}},
- ref:v=>v==='direct'?'Truy cập trực tiếp':v,device:v=>v==='mobile'?'Điện thoại':v==='desktop'?'Máy tính':v};
-function barList(box,rows,label,unit){const mx=Math.max(1,...rows.map(r=>r.n));
- box.replaceChildren(...(rows.length?rows.map(r=>h('div',{},h('div',{class:'t'},h('i',{text:label(r.value)})),h('div',{class:'n',text:r.n+(unit||'')}),h('div',{class:'bar'},Object.assign(h('i'),{style:'width:'+(r.n/mx*100)+'%'})))):[h('div',{class:'empty',text:'Chưa có dữ liệu.'})]))}
 function backupNote(){const t=+localStorage.getItem('noir_bk')||0,dd=t?Math.floor((Date.now()-t)/864e5):null,n=$('#bkn');n.hidden=dd!==null&&dd<14;
  if(!n.hidden)n.replaceChildren(h('span',{text:dd===null?'Bạn chưa tải bản sao lưu nào về máy.':'Đã '+dd+' ngày chưa sao lưu.'}),h('a',{href:'#/settings',text:'Sao lưu ngay'}))}
-function drawOverview(){backupNote();const N=days.length;
+function prep(){const N=S.stats.days||30;days=[];const s=new Date(S.stats.since+'T00:00:00Z');for(let i=0;i<N;i++)days.push(new Date(s.getTime()+i*864e5).toISOString().slice(0,10));
+ by={view:{},uv:{},copy:{},run:{}};S.stats.rows.forEach(r=>by[r.kind]&&(by[r.kind][r.day]=r.count));
+ pers={};(S.stats.per||[]).forEach(r=>{const o=pers[r.script_id]=pers[r.script_id]||{copy:{},run:{},open:{}};if(o[r.kind])o[r.kind][r.day]=r.count})}
+const sumv=a=>a.reduce((x,y)=>x+y,0);
+const series=k=>{const src=SEL?((pers[SEL]||{})[k==='view'?'open':k]||{}):by[k];return days.map(d=>src[d]||0)};
+const flag=c=>String.fromCodePoint(...[...c].map(x=>127397+x.charCodeAt(0)));
+const regionName=c=>{try{return new Intl.DisplayNames(['vi'],{type:'region'}).of(c)}catch{return c}};
+const okCC=c=>/^[A-Z]{2}$/.test(c)&&c!=='XX';
+const GRP={social:'Mạng xã hội',search:'Tìm kiếm',direct:'Truy cập trực tiếp',tag:'Link gắn nhãn',other:'Website khác'};
+const LBL={country:c=>okCC(c)?flag(c)+' '+regionName(c):'Không rõ',
+ city:v=>{const p=v.split('|'),c=p[0],n=p[1]||p[0];return (okCC(c)?flag(c)+' ':'')+n+(okCC(c)?', '+regionName(c):'')},
+ grp:v=>GRP[v]||v,dev:v=>({mobile:'Điện thoại',desktop:'Máy tính',tablet:'Máy tính bảng'})[v]||v,id:v=>v};
+function barList(box,rows,label,pct){const mx=Math.max(1,...rows.map(r=>r.n)),tot=Math.max(1,sumv(rows.map(r=>r.n)));
+ box.replaceChildren(...(rows.length?rows.map(r=>h('div',{},h('div',{class:'t'},h('i',{text:label(r.value)})),h('div',{class:'n',text:r.n+(pct?' ('+Math.round(r.n/tot*100)+'%)':'')}),h('div',{class:'bar'},Object.assign(h('i'),{style:'width:'+(r.n/mx*100)+'%'})))):[h('div',{class:'empty',text:'Chưa có dữ liệu.'})]))}
+function colChart(box,vals,labels,unit){const mx=Math.max(1,...vals);
+ box.replaceChildren(h('div',{class:'hb'},...vals.map((n,i)=>{const b=h('i',{title:(labels[i]||i)+': '+n+(unit||''),class:n===0?'z':(n===mx?'top':'')});b.style.height=Math.max(3,n/mx*100)+'%';return b})),
+  h('div',{class:'hbx'},...labels.map(t=>h('span',{text:t}))))}
+function drawOverview(){backupNote();const N=days.length,st=S.stats,pv=st.prev||{},dm=st.dims||{};
  $$('#rng input').forEach(i=>i.checked=+i.value===RANGE);
  $('#osel').replaceChildren(h('option',{value:'',text:'Tất cả script'}),...S.scripts.map(s=>h('option',{value:s.id,text:s.title})));$('#osel').value=SEL;
- $('#strip').replaceChildren(...[['view','Lượt xem'],['copy','Lượt copy'],['run','Lượt chạy']].map(([k,l])=>{const off=SEL&&k==='view',v=series(k);return h('div',{},h('span',{text:l}),h('b',{text:off?'–':String(v.reduce((a,b)=>a+b,0))}),h('em',{text:off?'chưa tách theo script':'hôm nay '+v[N-1]}))}));
+ $('#strip').replaceChildren(...[['view',SEL?'Lượt mở popup':'Lượt xem'],['uv','Khách'],['copy','Lượt copy'],['run','Lượt chạy']].map(([k,l])=>{const off=SEL&&k==='uv',v=series(k),cur=sumv(v);let dl='';
+  if(!SEL){const p=pv[k]||0;dl=p?((cur>=p?'▲ ':'▼ ')+Math.abs(Math.round((cur-p)/p*100))+'% so với kỳ trước'):(cur?'chưa có kỳ trước':'')}
+  return h('div',{},h('span',{text:l}),h('b',{text:off?'–':String(cur)}),h('em',{class:'dl '+(dl[0]==='▲'?'up':dl[0]==='▼'?'dn':''),text:off?'chưa tách theo script':dl}),h('small',{text:off?'':'Hôm nay: '+v[N-1]}))}));
+ const vis=Object.fromEntries((dm.visitor||[]).map(r=>[r.value,r.n])),vt=(vis.new||0)+(vis.ret||0),V=sumv(series('view')),U=sumv(series('uv')),C=sumv(series('copy')),Rn=sumv(series('run'));
+ const M3=SEL?[['Tỉ lệ copy trên mở',V?Math.round(C/V*100)+'%':'–'],['Lượt chạy mỗi lượt copy',C?(Rn/C).toFixed(1):'–']]:[['Tỉ lệ copy trên xem',V?Math.round(C/V*100)+'%':'–'],['Lượt xem mỗi khách',U?(V/U).toFixed(1):'–'],['Khách quay lại',vt?Math.round((vis.ret||0)/vt*100)+'%':'–']];
+ $('#kpi2').replaceChildren(...M3.map(([l,v])=>h('div',{class:'mini'},h('span',{text:l}),h('b',{text:v}))));
  chart();
- const mx=Math.max(1,...S.scripts.map(s=>s.runs)),t=[...S.scripts].sort((a,b)=>b.runs-a.runs).slice(0,6);
- $('#top').replaceChildren(...(t.length?t.map(s=>h('div',{},h('div',{class:'t'},h('i',{text:s.title})),h('div',{class:'n',text:s.runs+' lượt chạy'}),h('div',{class:'bar'},Object.assign(h('i'),{style:'width:'+(s.runs/mx*100)+'%'})))):[h('div',{class:'empty',text:'Chưa có script nào được chạy.'})]));
- barList($('#lc'),S.stats.countries||[],LBL.country);barList($('#lr'),S.stats.refs||[],LBL.ref);barList($('#ld'),S.stats.devices||[],LBL.device)}
-function chart(){const N=days.length;if(SEL&&M==='view'){M='run';$$('#metric input').forEach(i=>i.checked=i.value===M)}$('#metric input[value=view]').disabled=!!SEL;
+ const hr=Array(24).fill(0);(dm.hour||[]).forEach(r=>{hr[+r.value]=r.n});const hmx=Math.max(...hr),ht=hr.indexOf(hmx);
+ colChart($('#hrs'),hr,Array.from({length:24},(_,i)=>i%6===0||i===23?i+'h':''),' lượt');
+ $('#hrt').textContent=hmx?'Đông nhất quanh '+ht+'h ('+hmx+' lượt xem). Giờ theo múi giờ Việt Nam.':'Chưa có dữ liệu giờ truy cập.';
+ const wd=Array(7).fill(0),vs=series('view');days.forEach((d,i)=>{wd[(new Date(d+'T00:00:00Z').getUTCDay()+6)%7]+=vs[i]});
+ colChart($('#wkd'),wd,['T2','T3','T4','T5','T6','T7','CN']);
+ const tot=(o,k)=>sumv(days.map(d=>((o||{})[k]||{})[d]||0));
+ const rows=S.scripts.map(s=>{const o=pers[s.id];return{s,o:tot(o,'open'),c:tot(o,'copy'),r:tot(o,'run')}}).sort((a,b)=>b.r-a.r||b.c-a.c||b.o-a.o).slice(0,12);
+ $('#tscr').replaceChildren(h('div',{class:'thd'},h('span',{text:'Script'}),...['Mở','Copy','Chạy','Tỉ lệ'].map(t=>h('span',{class:'r',text:t}))),
+  ...(rows.length?rows.map(({s,o,c,r})=>h('div',{class:s.id===SEL?'sel':'',onclick:()=>{SEL=SEL===s.id?'':s.id;drawOverview()}},h('span',{class:'tt',text:s.title}),h('span',{class:'r',text:String(o)}),h('span',{class:'r',text:String(c)}),h('span',{class:'r',text:String(r)}),h('span',{class:'r',text:o?Math.round(c/o*100)+'%':'–'}))):[h('div',{},h('span',{text:'Chưa có script.'}))]));
+ barList($('#lgrp'),dm.srcgrp||[],LBL.grp,true);barList($('#lsrc'),dm.src||[],LBL.id);
+ barList($('#lc'),dm.country||[],LBL.country);barList($('#lcity'),dm.city||[],LBL.city);
+ barList($('#ld'),dm.device||[],LBL.dev,true);barList($('#los'),dm.os||[],LBL.id);barList($('#lbr'),dm.browser||[],LBL.id);barList($('#lmd'),dm.model||[],LBL.id)}
+function chart(){const N=days.length;if(SEL&&M==='uv'){M='view';$$('#metric input').forEach(i=>i.checked=i.value===M)}$('#metric input[value=uv]').disabled=!!SEL;
  const v=series(M),mx=Math.max(1,...v),P=v.map((n,i)=>[i*600/(N-1),142-n/mx*132]),line=P.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join('');
  $('#svg').innerHTML='<path d="'+line+'L600 150L0 150Z" style="fill:var(--ac);fill-opacity:.14"/><path d="'+line+'" fill="none" style="stroke:var(--ac)" stroke-width="2" vector-effect="non-scaling-stroke"/>';
- $('#d0').textContent=fmt(days[0]);$('#d1').textContent='hôm nay';const base0='Cao nhất '+mx+'/ngày, tổng '+v.reduce((a,b)=>a+b,0)+' trong '+N+' ngày';$('#tip').textContent=base0;
+ $('#d0').textContent=fmt(days[0]);$('#d1').textContent='hôm nay';const base0='Cao nhất '+mx+'/ngày, tổng '+sumv(v)+' trong '+N+' ngày';$('#tip').textContent=base0;
  const svg=$('#svg');svg.onpointermove=e=>{const r=svg.getBoundingClientRect(),i=Math.max(0,Math.min(N-1,Math.round((e.clientX-r.left)/r.width*(N-1))));$('#tip').textContent=fmt(days[i])+': '+v[i]};svg.onpointerleave=()=>$('#tip').textContent=base0}
 $$('#metric input').forEach(i=>i.onchange=()=>{M=i.value;chart()});
 $$('#rng input').forEach(i=>i.onchange=()=>run(async()=>{RANGE=+i.value;await load();drawOverview()}));
