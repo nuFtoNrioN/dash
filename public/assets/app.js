@@ -1,5 +1,5 @@
 // Kiểm tra các file giao diện có cùng một bản không (tránh chép thiếu file)
-(function(){const c=getComputedStyle(document.documentElement).getPropertyValue('--ver').trim();if(c!=='11'||window.LOOK_V!==11){const b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99;padding:10px 14px;background:#f0b429;color:#14121c;font:14px system-ui';b.textContent='Các file giao diện chưa được cập nhật đồng bộ (index.html, style.css, app.js, look.js phải cùng bản 11). Hãy chép đủ rồi tải lại trang.';document.body.append(b)}})();
+(function(){const c=getComputedStyle(document.documentElement).getPropertyValue('--ver').trim();if(c!=='12'||window.LOOK_V!==12){const b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99;padding:10px 14px;background:#f0b429;color:#14121c;font:14px system-ui';b.textContent='Các file giao diện chưa được cập nhật đồng bộ (index.html, style.css, app.js, look.js phải cùng bản 12). Hãy chép đủ rồi tải lại trang.';document.body.append(b)}})();
 const $=(s)=>document.querySelector(s),$$=(s)=>[...document.querySelectorAll(s)];
 const h=(t,p={},...k)=>{const e=document.createElement(t);for(const[a,v]of Object.entries(p)){if(a==='class')e.className=v;else if(a==='text')e.textContent=v;else if(a.startsWith('on'))e.addEventListener(a.slice(2),v);else e.setAttribute(a,v)}e.append(...k);return e};
 const ST={working:['Đang chạy','ok'],patched:['Đã patch','bad'],outdated:['Cũ','warn']};
@@ -102,7 +102,7 @@ $('#sp').onclick=()=>run(async()=>{const p=readPR();await api('/profile','PUT',p
 
 /* khung avatar */
 function tile(id,name,url){const t=h('button',{class:'tl'+(DEC===id?' on':''),type:'button',title:name,'aria-label':name,onclick:()=>{DEC=id;drawFrames();prev();poke()}},h('span',{class:'tla',text:url?'':'∅'}));
- if(url){const o=h('img',{src:url,alt:''});o.style.width=o.style.height=($('#fs').value/130*52)+'px';t.append(o)}return t}
+ if(url){const v=isVid(url),o=v?mkVideo(url):h('img',{src:url,alt:''});if(v&&!/\.webm(\?|#|$)/i.test(url))o.style.mixBlendMode='screen';o.style.width=o.style.height=($('#fs').value/130*52)+'px';t.append(o)}return t}
 function drawFrames(){$('#fsv').textContent=$('#fs').value+'%';
  $('#tiles').replaceChildren(tile('none','Không',''),...PF_DECOS.map(d=>tile('b:'+d.id,d.name,d.uri)),...FRM.map(f=>tile('c:'+f.id,f.name,f.url)));
  $('#dfl').replaceChildren(...FRM.map(f=>h('div',{},h('div',{class:'t'},h('i',{text:f.name})),h('div',{class:'n'},
@@ -177,7 +177,7 @@ let G=defSet(),editBg=null;
 const gv=()=>JSON.stringify(G),live=()=>applyLook(G,'dash');
 function fillSettings(){G=mergeSet(S.settings);resetBgForm();drawSet();track(gv)}
 function bgRow(id,name,url){const rd=h('input',{type:'radio',name:'bgsel',value:id,onchange:()=>{G.bg.active=id;live();poke()}});rd.checked=G.bg.active===id;
- const th=h('span',{class:'th'});if(url)th.style.backgroundImage='url("'+url.replace(/"/g,'%22')+'")';
+ const th=h('span',{class:'th'});if(url&&isVid(url))th.append(h('video',{src:url+'#t=0.1',preload:'metadata',muted:'',playsinline:''}));else if(url)th.style.backgroundImage='url("'+url.replace(/"/g,'%22')+'")';
  return h('div',{},h('label',{class:'bgl'},rd,th,h('span',{text:name})),url?h('div',{},
   h('button',{class:'btn sm',type:'button',text:'Sửa',onclick:()=>{editBg=id;$('#bn').value=name;$('#bu').value=url;$('#bsave').textContent='Cập nhật';$('#bcancel').hidden=false;$('#bn').focus()}}),' ',
   h('button',{class:'btn sm bad',type:'button',text:'Xoá',onclick:()=>{G.backgrounds=G.backgrounds.filter(x=>x.id!==id);if(G.bg.active===id)G.bg.active='';drawSet();live();poke()}})):'')}
