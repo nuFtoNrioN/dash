@@ -189,15 +189,19 @@ async function admin(request, env, url) {
 
     if (path === '/stats' && method === 'GET') {
       const days = Math.min(90, Math.max(7, Number(url.searchParams.get('days')) || 30));
-      const since = today(-(days - 1));
+      const since = today(-(days - 1)), prevSince = today(-(2 * days - 1));
       const { results } = await env.DB.prepare('SELECT day, kind, count FROM daily_stats WHERE day >= ? ORDER BY day').bind(since).all();
-      const agg = async (dim) => {
-        try { return (await env.DB.prepare('SELECT value, SUM(count) AS n FROM visit_stats WHERE dim = ? AND day >= ? GROUP BY value ORDER BY n DESC LIMIT 10').bind(dim, since).all()).results; }
+      const prev = {};
+      (await env.DB.prepare('SELECT kind, SUM(count) AS n FROM daily_stats WHERE day >= ? AND day < ? GROUP BY kind').bind(prevSince, since).all()).results.forEach((r) => { prev[r.kind] = r.n; });
+      const agg = async (dim, limit) => {
+        try { return (await env.DB.prepare('SELECT value, SUM(count) AS n FROM visit_stats WHERE dim = ? AND day >= ? GROUP BY value ORDER BY n DESC LIMIT ?').bind(dim, since, limit).all()).results; }
         catch (e) { return []; }
       };
+      const dims = {};
+      for (const [dim, lim] of [['country', 10], ['city', 10], ['device', 4], ['os', 8], ['browser', 8], ['model', 10], ['src', 12], ['srcgrp', 6], ['hour', 24], ['visitor', 2]]) dims[dim] = await agg(dim, lim);
       let per = [];
       try { per = (await env.DB.prepare('SELECT day, script_id, kind, count FROM script_stats WHERE day >= ?').bind(since).all()).results; } catch (e) { /* chưa có bảng */ }
-      return json({ since, today: today(), days, rows: results, per, countries: await agg('country'), refs: await agg('ref'), devices: await agg('device') });
+      return json({ since, today: today(), days, rows: results, prev, per, dims });
     }
 
     if (path === '/profile' && method === 'PUT') {
