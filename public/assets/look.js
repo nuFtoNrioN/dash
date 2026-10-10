@@ -1,4 +1,4 @@
-window.LOOK_V = 11;
+window.LOOK_V = 12;
 // Giao diện dùng chung cho bio và dash: màu, hình nền (cố định/ngẫu nhiên/trình chiếu + hiệu ứng chuyển),
 // thẻ hồ sơ (khung avatar), hiệu ứng hạt, danh sách nền tảng mạng xã hội.
 (function () {
@@ -24,7 +24,9 @@ window.LOOK_V = 11;
     '.glass{--s1:rgba(27,25,37,.55);--bg-card:rgba(23,21,31,.55);--bg-input:rgba(13,12,19,.5)}',
     '.glass .strip,.glass .chart,.glass .pvwrap,.glass .scard,.glass .card,.glass dialog,.glass .gcard,.glass input,.glass textarea,.glass select{-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}',
     // thẻ hồ sơ
-    '.pf{text-align:center}.pf-ban{height:132px;border-radius:16px;background:linear-gradient(135deg,color-mix(in srgb,' + A + ' 55%,#14121c),#14121c) center/cover}',
+    '.bgv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}',
+    '.pf-bv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.pf-fo.scr{mix-blend-mode:screen}',
+    '.pf{text-align:center}.pf-ban{position:relative;overflow:hidden;height:132px;border-radius:16px;background:linear-gradient(135deg,color-mix(in srgb,' + A + ' 55%,#14121c),#14121c) center/cover}',
     '.pf-av{position:relative;width:104px;height:104px;margin:-52px auto 12px;border-radius:50%}',
     '.pf-img{position:relative;z-index:1;display:block;width:100%;height:100%;border-radius:50%;object-fit:cover;background:#242134;box-shadow:0 0 0 4px #0f0d16}',
     '.pf-img.ph{display:grid;place-items:center;font-size:38px;font-weight:700;color:#938da8}',
@@ -49,6 +51,20 @@ window.LOOK_V = 11;
   var st = document.createElement('style'); st.textContent = css; document.head.append(st);
 
   var ok = function (u) { return /^https:\/\//.test(u || ''); };
+  // ---- hỗ trợ video (.mp4, .webm, .m4v) cho nền, avatar, ảnh bìa, khung ----
+  var isVid = window.isVid = function (u) { return /\.(mp4|webm|m4v)(\?|#|$)/i.test(u || ''); };
+  var calm = function () { return matchMedia('(prefers-reduced-motion: reduce)').matches || !!(navigator.connection && navigator.connection.saveData); };
+  window.mkVideo = function (u, cls) {
+    var v = document.createElement('video'); if (cls) v.className = cls;
+    v.muted = true; v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.playsInline = true;
+    if (calm()) { v.preload = 'metadata'; v.src = u + (u.indexOf('#') < 0 ? '#t=0.1' : ''); return v; } // tiết kiệm dữ liệu: chỉ hiện khung đầu
+    v.loop = true; v.autoplay = true; v.src = u;
+    v.addEventListener('canplay', function () { var p = v.play(); if (p && p.catch) p.catch(function () {}); });
+    return v;
+  };
+  document.addEventListener('visibilitychange', function () { // dừng video khi chuyển tab để đỡ tốn pin
+    document.querySelectorAll('video.bgv,.pf-av video,.pf-ban video').forEach(function (v) { if (document.hidden) v.pause(); else if (v.autoplay) { var p = v.play(); if (p && p.catch) p.catch(function () {}); } });
+  });
   var el = function (t, c, x) { var n = document.createElement(t); if (c) n.className = c; if (x != null) n.textContent = x; return n; };
   var cssUrl = function (u) { return 'url("' + u.replace(/"/g, '%22').replace(/\\/g, '%5C') + '")'; };
 
@@ -116,16 +132,16 @@ window.LOOK_V = 11;
   window.buildProfile = function (p) {
     p = p || {};
     var root = el('div', 'pf'), ban = el('div', 'pf-ban');
-    if (ok(p.banner_url)) ban.style.backgroundImage = cssUrl(p.banner_url);
+    if (ok(p.banner_url)) { if (isVid(p.banner_url)) ban.append(mkVideo(p.banner_url, 'pf-bv')); else ban.style.backgroundImage = cssUrl(p.banner_url); }
     var fr = PF_FRAMES.some(function (f) { return f[0] === p.frame; }) ? p.frame : 'none';
     var av = el('div', 'pf-av fr-' + fr);
     if (/^#[0-9a-f]{6}$/i.test(p.frame_color || '')) av.style.setProperty('--fc', p.frame_color);
     var im;
-    if (ok(p.avatar_url)) { im = el('img', 'pf-img'); im.src = p.avatar_url; im.alt = ''; }
+    if (ok(p.avatar_url)) { if (isVid(p.avatar_url)) im = mkVideo(p.avatar_url, 'pf-img'); else { im = el('img', 'pf-img'); im.src = p.avatar_url; im.alt = ''; } }
     else im = el('div', 'pf-img ph', (p.name || 'N').trim().charAt(0).toUpperCase());
     av.append(im);
     var du = decoUrl(p);
-    if (du) { var o = el('img', 'pf-fo'); o.src = du; o.alt = ''; o.style.setProperty('--fs', Math.min(170, Math.max(100, +p.frame_scale || 130))); av.append(o); }
+    if (du) { var o; if (isVid(du)) { o = mkVideo(du, 'pf-fo' + (/\.webm(\?|#|$)/i.test(du) ? '' : ' scr')); } else { o = el('img', 'pf-fo'); o.src = du; o.alt = ''; } o.style.setProperty('--fs', Math.min(170, Math.max(100, +p.frame_scale || 130))); av.append(o); }
     root.append(ban, av, el('div', 'pf-nm', p.name || 'NOIR'));
     if (p.tagline) root.append(el('div', 'pf-tg', p.tagline));
     if (p.pronouns || p.location) {
@@ -166,7 +182,18 @@ window.LOOK_V = 11;
   // ---------- nền ----------
   var timer = null, tkey = '', rnd = null, si = 0, front = true, trans = 'fade';
   var mix = function (h, p) { return '#' + [1, 3, 5].map(function (i) { return Math.round(parseInt(h.substr(i, 2), 16) * (1 - p) + 255 * p).toString(16).padStart(2, '0'); }).join(''); };
-  var setImg = function (e, u) { e.style.backgroundImage = cssUrl(u); };
+  var setImg = function (e, u) {
+    var old = e.querySelector('video'); if (old) old.remove();
+    if (isVid(u)) { e.style.backgroundImage = 'none'; e.append(mkVideo(u, 'bgv')); }
+    else e.style.backgroundImage = cssUrl(u);
+  };
+  var preload = function (u, cb) { // tải xong mới chuyển ảnh/video để không bị nháy trống
+    if (!isVid(u)) { var im = new Image(); im.onload = cb; im.src = u; return; }
+    var v = document.createElement('video'), done = false, fin = function () { if (!done) { done = true; cb(); } };
+    v.preload = 'auto'; v.muted = true;
+    v.addEventListener('canplaythrough', fin); v.addEventListener('loadeddata', fin); v.addEventListener('error', fin);
+    setTimeout(fin, 8000); v.src = u;
+  };
   var clear = function () {
     clearInterval(timer); timer = null; tkey = '';
     ['bgfx', 'bgfx2', 'bgdim'].forEach(function (id) { var e = document.getElementById(id); if (e) e.remove(); });
@@ -231,13 +258,12 @@ window.LOOK_V = 11;
       front = true; setImg(L.a, bgs[si].url); L.a.style.opacity = 1; L.b.style.opacity = 0;
       timer = setInterval(function () {
         si = (si + 1) % bgs.length;
-        var url = bgs[si].url, im = new Image();
-        im.onload = function () {
+        var url = bgs[si].url;
+        preload(url, function () {
           var kind = trans === 'random' ? ['fade', 'slide', 'zoom', 'ink'][Math.floor(Math.random() * 4)] : trans;
           var inc = front ? L.b : L.a, out = front ? L.a : L.b;
           setImg(inc, url); go(inc, out, kind); front = !front;
-        };
-        im.src = url;
+        });
       }, sec * 1000);
       return;
     }
