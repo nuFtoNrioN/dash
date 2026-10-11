@@ -42,8 +42,17 @@ async function getProfile(env) {
 }
 
 async function getLinks(env) {
+  try { return (await env.DB.prepare('SELECT label, url, icon, tab_id, note, mode FROM links ORDER BY sort, id').all()).results; }
+  catch (e) { /* chưa chạy migration 009 */ }
   try { return (await env.DB.prepare('SELECT label, url, icon, tab_id, note FROM links ORDER BY sort, id').all()).results; }
   catch (e) { return (await env.DB.prepare('SELECT label, url, icon, tab_id FROM links ORDER BY sort, id').all()).results; }
+}
+
+// Tab: chế độ (kind), chức năng tab "custom" (opts), nội dung tab ghi chú (body). Chưa chạy migration 009 thì rơi về cột cũ.
+async function getTabs(env, order, withSort) {
+  const sel = 'id, name, kind' + (withSort ? ', sort' : '');
+  try { return (await env.DB.prepare('SELECT ' + sel + ', opts, body FROM tabs ORDER BY ' + order).all()).results; }
+  catch (e) { return (await env.DB.prepare('SELECT ' + sel + ' FROM tabs ORDER BY ' + order).all()).results; }
 }
 
 async function adminScripts(env) {
@@ -164,6 +173,29 @@ const httpsUrl = (v) => {
 
 class HttpError extends Error { constructor(status, msg) { super(msg); this.status = status; } }
 
+// Chế độ tab. Danh sách này phải khớp TAB_MODES / TAB_FEATS trong look.js
+const TAB_KINDS = ['social', 'link', 'media', 'script', 'note', 'custom'];
+const TAB_FEATS = ['note', 'social', 'link', 'media', 'script'];
+const LINK_FEATS = ['social', 'link', 'media'];
+function tabOptsJson(kind, o) { // chuỗi JSON lưu vào tabs.opts; chỉ tab custom mới có
+  if (kind !== 'custom') return '';
+  const f = {};
+  TAB_FEATS.forEach((k) => { if (o && o.f && o.f[k] === true) f[k] = true; });
+  if (!Object.keys(f).length) throw new HttpError(400, 'Tab "Khác" cần bật ít nhất một chức năng');
+  return JSON.stringify({ f, tools: !(o && o.tools === false) });
+}
+function tabFeatsOf(t) {
+  if (t.kind !== 'custom') return [t.kind];
+  let o = {}; try { o = JSON.parse(t.opts || '{}'); } catch (e) { o = {}; }
+  return TAB_FEATS.filter((k) => o.f && o.f[k]);
+}
+// sau khi sửa hoặc xoá, vẫn phải còn ít nhất một tab chứa script và một tab chứa link (social, link hoặc ảnh & video)
+function checkProviders(tabs) {
+  const fs = tabs.flatMap(tabFeatsOf);
+  if (!fs.includes('script')) throw new HttpError(400, 'Cần giữ ít nhất một tab chứa Script');
+  if (!fs.some((k) => LINK_FEATS.includes(k))) throw new HttpError(400, 'Cần giữ ít nhất một tab chứa link (Social, Link hoặc Ảnh & video)');
+}
+
 async function readJson(request) {
   if (Number(request.headers.get('content-length') || 0) > 400000) throw new HttpError(413, 'Dữ liệu quá lớn');
   try { return await request.json(); } catch { throw new HttpError(400, 'JSON không hợp lệ'); }
@@ -183,8 +215,7 @@ async function admin(request, env, url) {
     if (path === '/me' && method === 'GET') return json({ who, bio_url: (env.BIO_URL || '').replace(/\/$/, ''), raw_url: (env.RAW_URL || '').replace(/\/$/, '') });
 
     if (path === '/data' && method === 'GET') {
-      const t = await env.DB.prepare('SELECT id, name, kind FROM tabs ORDER BY sort, id').all();
-      return json({ profile: await getProfile(env), links: await getLinks(env), scripts: await adminScripts(env), tabs: t.results, settings: await getSettings(env) });
+      return json({ profile: await getProfile(env), links: await getLinks(env), scripts: await adminScripts(env), tabs: await getTabs(env, 'sort, id'), settings: await getSettings(env) });
     }
 
     if (path === '/stats' && method === 'GET') {
@@ -231,13 +262,13 @@ async function admin(request, env, url) {
 
     if (path === '/links' && method === 'PUT') {
       const b = await readJson(request);
-      if (!Array.isArray(b.links) || b.links.length > 20) throw new HttpError(400, 'Tối đa 20 link');
+      if (!Array.isArray(b.links) || b.links.length > 60) throw new HttpError(400, 'Tối đa 60 link');
       const stmts = [env.DB.prepare('DELETE FROM links')];
       b.links.forEach((x, i) => {
         const label = str(x.label, 40);
         const u = httpsUrl(str(x.url, 500));
         if (!label || !u) throw new HttpError(400, `Link #${i + 1}: cần tên và URL https hợp lệ`);
-        stmts.push(env.DB.prepare('INSERT INTO links (label, url, icon, sort, tab_id, note) VALUES (?, ?, ?, ?, ?, ?)').bind(label, u, str(x.icon, 24), i, Number.isInteger(x.tab_id) && x.tab_id >= 0 ? x.tab_id : 0, str(x.note, 80)));
+        stmts.push(env.DB.prepare('INSERT INTO links (label, url, icon, sort, tab_id, note, mode) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(label, u, str(x.icon, 24), i, Number.isInteger(x.tab_id) && x.tab_id >= 0 ? x.tab_id : 0, str(x.note, 80), LINK_FEATS.includes(x.mode) ? x.mode : ''));
       });
       await env.DB.batch(stmts);
       return json({ ok: true });
@@ -342,7 +373,7 @@ async function admin(request, env, url) {
       try { const r = await env.DB.prepare('SELECT data FROM site_settings WHERE id = 1').first(); settings = r ? r.data : ''; } catch (e) { /* chưa có bảng */ }
       const body = JSON.stringify({
         version: 1, exported_at: new Date().toISOString(), profile, settings,
-        tabs: await q('SELECT id, name, kind, sort FROM tabs ORDER BY id'),
+        tabs: await getTabs(env, 'id', true),
         links: await getLinks(env),
         scripts: await q('SELECT * FROM scripts ORDER BY created_at'),
         versions: await q('SELECT script_id, version, changelog, created_at FROM script_versions ORDER BY id').catch(() => []),
@@ -360,10 +391,14 @@ async function admin(request, env, url) {
       let hasV = true;
       try { await env.DB.prepare('SELECT 1 FROM script_versions LIMIT 1').first(); } catch (e) { hasV = false; }
       const st = ['links', 'scripts', 'tabs', 'daily_stats'].concat(hasV ? ['script_versions'] : []).map((t) => env.DB.prepare('DELETE FROM ' + t));
-      b.tabs.forEach((t) => st.push(env.DB.prepare('INSERT INTO tabs (id, name, kind, sort) VALUES (?, ?, ?, ?)').bind(n(t.id), str(t.name, 24) || 'Tab', t.kind === 'script' ? 'script' : 'social', n(t.sort))));
+      b.tabs.forEach((t) => {
+        let kind = TAB_KINDS.includes(t.kind) ? t.kind : 'social', opts = '';
+        if (kind === 'custom') { try { opts = tabOptsJson('custom', JSON.parse(t.opts || '{}')); } catch (e) { kind = 'social'; } }
+        st.push(env.DB.prepare('INSERT INTO tabs (id, name, kind, sort, opts, body) VALUES (?, ?, ?, ?, ?, ?)').bind(n(t.id), str(t.name, 24) || 'Tab', kind, n(t.sort), opts, str(t.body, 4000)));
+      });
       b.links.forEach((l, i) => {
         const u = httpsUrl(str(l.url, 500)), label = str(l.label, 40);
-        if (u && label) st.push(env.DB.prepare('INSERT INTO links (label, url, icon, sort, tab_id, note) VALUES (?, ?, ?, ?, ?, ?)').bind(label, u, str(l.icon, 24), i, n(l.tab_id), str(l.note, 80)));
+        if (u && label) st.push(env.DB.prepare('INSERT INTO links (label, url, icon, sort, tab_id, note, mode) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(label, u, str(l.icon, 24), i, n(l.tab_id), str(l.note, 80), LINK_FEATS.includes(l.mode) ? l.mode : ''));
       });
       b.scripts.forEach((x) => {
         const id = str(x.id, 40), code = typeof x.code === 'string' ? x.code : '';
@@ -405,25 +440,35 @@ async function admin(request, env, url) {
       const b = await readJson(request);
       const name = str(b.name, 24);
       if (!name) throw new HttpError(400, 'Thiếu tên tab');
+      const kind = TAB_KINDS.includes(b.kind) ? b.kind : 'social';
+      const opts = tabOptsJson(kind, b.opts);
       const nx = await env.DB.prepare('SELECT COALESCE(MAX(sort), 0) + 1 AS n FROM tabs').first();
-      await env.DB.prepare('INSERT INTO tabs (name, kind, sort) VALUES (?, ?, ?)').bind(name, b.kind === 'script' ? 'script' : 'social', nx.n).run();
+      await env.DB.prepare('INSERT INTO tabs (name, kind, sort, opts, body) VALUES (?, ?, ?, ?, ?)').bind(name, kind, nx.n, opts, kind === 'note' || kind === 'custom' ? str(b.body, 4000) : '').run();
       return json({ ok: true });
     }
     const tm = path.match(/^\/tabs\/(\d+)$/);
     if (tm && method === 'PUT') {
-      const name = str((await readJson(request)).name, 24);
+      const id = Number(tm[1]);
+      const b = await readJson(request);
+      const cur = await env.DB.prepare('SELECT id, name, kind, opts, body FROM tabs WHERE id = ?').bind(id).first();
+      if (!cur) throw new HttpError(404, 'Không tìm thấy tab');
+      const name = b.name === undefined ? cur.name : str(b.name, 24);
       if (!name) throw new HttpError(400, 'Thiếu tên tab');
-      await env.DB.prepare('UPDATE tabs SET name = ? WHERE id = ?').bind(name, Number(tm[1])).run();
+      const kind = b.kind === undefined ? cur.kind : (TAB_KINDS.includes(b.kind) ? b.kind : cur.kind);
+      const opts = tabOptsJson(kind, b.opts === undefined ? (() => { try { return JSON.parse(cur.opts || '{}'); } catch (e) { return {}; } })() : b.opts);
+      const body = kind === 'note' || kind === 'custom' ? (b.body === undefined ? cur.body : str(b.body, 4000)) : '';
+      const all = await getTabs(env, 'id');
+      checkProviders(all.map((t) => (t.id === id ? { id, kind, opts } : t)));
+      await env.DB.prepare('UPDATE tabs SET name = ?, kind = ?, opts = ?, body = ? WHERE id = ?').bind(name, kind, opts, body, id).run();
       return json({ ok: true });
     }
     if (tm && method === 'DELETE') {
       const id = Number(tm[1]);
-      const t = await env.DB.prepare('SELECT kind FROM tabs WHERE id = ?').bind(id).first();
-      if (!t) throw new HttpError(404, 'Không tìm thấy tab');
-      const c = await env.DB.prepare('SELECT COUNT(*) AS n FROM tabs WHERE kind = ?').bind(t.kind).first();
-      if (c.n <= 1) throw new HttpError(400, 'Mỗi loại cần ít nhất một tab');
+      const all = await getTabs(env, 'id');
+      if (!all.some((t) => t.id === id)) throw new HttpError(404, 'Không tìm thấy tab');
+      checkProviders(all.filter((t) => t.id !== id));
       await env.DB.batch([
-        env.DB.prepare('UPDATE links SET tab_id = 0 WHERE tab_id = ?').bind(id),
+        env.DB.prepare("UPDATE links SET tab_id = 0, mode = '' WHERE tab_id = ?").bind(id),
         env.DB.prepare('UPDATE scripts SET tab_id = 0 WHERE tab_id = ?').bind(id),
         env.DB.prepare('DELETE FROM tabs WHERE id = ?').bind(id),
       ]);
