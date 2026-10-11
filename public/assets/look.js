@@ -1,4 +1,4 @@
-window.LOOK_V = 13;
+window.LOOK_V = 14;
 // Giao diện dùng chung cho bio và dash: màu, hình nền (cố định/ngẫu nhiên/trình chiếu + hiệu ứng chuyển),
 // thẻ hồ sơ (khung avatar), hiệu ứng hạt, danh sách nền tảng mạng xã hội.
 (function () {
@@ -230,19 +230,50 @@ window.LOOK_V = 13;
     a.onfinish = function () { out.style.opacity = 0; inc.style.webkitMaskImage = inc.style.maskImage = ''; if (kind === 'ink') a.cancel(); };
   };
 
-  window.applyLook = function (s, page) {
+  // ---------- chuẩn hoá cài đặt: hình nền riêng cho từng trang (bio, dash) và từng thiết bị (pc, mobile) ----------
+  var BG_KEYS = { active: '', mode: 'off', interval: 30, trans: 'fade', blur: 0, dim: 40, anim: 'none', glass: false };
+  var bgCfg = function (c, fb) {
+    c = c || {}; var r = {};
+    Object.keys(BG_KEYS).forEach(function (k) { r[k] = c[k] !== undefined ? c[k] : (fb && fb[k] !== undefined ? fb[k] : BG_KEYS[k]); });
+    if (['off', 'fixed', 'random', 'slide'].indexOf(r.mode) < 0) r.mode = 'off';
+    return r;
+  };
+  window.normSettings = function (s) {
     s = s || {};
-    var t = s.theme || {}, b = s.bg || {}, r = document.documentElement.style;
+    var o = { theme: Object.assign({ accent: '#9370ff' }, s.theme), backgrounds: Array.isArray(s.backgrounds) ? s.backgrounds : [], layout: Object.assign({ links: 'list' }, s.layout) };
+    var src = s.bgs;
+    if (!src) { // dữ liệu cũ (trước v14): một cấu hình bg + apply
+      var g = s.bg || {}, ap = g.apply === 'bio' || g.apply === 'dash' ? g.apply : 'both';
+      var leg = bgCfg(g); if (!g.mode) leg.mode = g.active ? 'fixed' : 'off'; if (leg.mode === 'fixed' && !leg.active) leg.mode = 'off';
+      src = { bio: { pc: ap === 'dash' ? {} : leg }, dash: { pc: ap === 'bio' ? {} : leg } };
+    }
+    var slot = function (x) { x = x || {}; var mb = x.mobile || {}, m = bgCfg(mb); m.same = mb.same !== false; return { pc: bgCfg(x.pc), mobile: m }; };
+    o.bgs = { bio: slot(src.bio), dash: slot(src.dash) };
+    return o;
+  };
+  // thiết bị hiện tại: theo html[data-ui] (bio và dash đều đặt thuộc tính này), không có thì theo độ rộng
+  var curDev = function () {
+    var u = document.documentElement.dataset.ui;
+    if (u === 'mobile' || u === 'desktop') return u === 'mobile' ? 'mobile' : 'pc';
+    return matchMedia('(max-width:859px)').matches ? 'mobile' : 'pc';
+  };
+  var lastLook = null;
+  // force = { page, dev }: xem trước hình nền của một trang/thiết bị khác (dùng trong Cài đặt của dash)
+  window.applyLook = function (s0, page, force) {
+    lastLook = [s0, page, force];
+    var s = window.normSettings(s0);
+    var t = s.theme, r = document.documentElement.style;
     var ac = /^#[0-9a-f]{6}$/i.test(t.accent || '') ? t.accent : '#9370ff';
     r.setProperty('--ac', ac); r.setProperty('--ac2', mix(ac, .3));
     r.setProperty('--accent', ac); r.setProperty('--accent-light', mix(ac, .3)); r.setProperty('--accent-glow', ac + '2e');
 
-    var on = (b.apply || 'both') === 'both' || b.apply === page;
-    var bgs = (s.backgrounds || []).filter(function (x) { return ok(x.url); });
-    var mode = b.mode === 'random' || b.mode === 'slide' ? b.mode : 'fixed';
+    var sl = s.bgs[(force && force.page) || page] || s.bgs.bio, dev = (force && force.dev) || curDev();
+    var b = dev === 'mobile' && !sl.mobile.same ? sl.mobile : sl.pc;
+    var bgs = s.backgrounds.filter(function (x) { return ok(x.url); });
+    var mode = b.mode;
     var cur = bgs.find(function (x) { return x.id === b.active; });
     trans = b.trans || 'fade';
-    if (!on || !bgs.length || (mode === 'fixed' && !cur)) { clear(); return; }
+    if (mode === 'off' || !bgs.length || (mode === 'fixed' && !cur)) { clear(); return; }
 
     var L = layers();
     [L.a, L.b].forEach(function (e) { e.style.filter = 'blur(' + (+b.blur || 0) + 'px)'; e.classList.toggle('zoom', b.anim === 'zoom'); });
@@ -275,4 +306,6 @@ window.LOOK_V = 13;
     } else url = cur.url;
     setImg(L.a, url); L.a.style.opacity = 1; L.b.style.opacity = 0; front = true;
   };
+  // đổi giao diện điện thoại <-> máy tính (xoay màn hình, đổi cỡ cửa sổ, ép tay trong dash): áp lại hình nền đúng thiết bị
+  new MutationObserver(function () { if (lastLook) window.applyLook(lastLook[0], lastLook[1], lastLook[2]); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-ui'] });
 })();
