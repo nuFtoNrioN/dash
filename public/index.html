@@ -90,11 +90,8 @@
           <label for="pa" style="margin-top:0">Link ảnh hoặc video đại diện (https)</label><input id="pa" placeholder="https://" inputmode="url">
           <label for="pr">Link ảnh hoặc video bìa (https)</label><input id="pr" placeholder="https://" inputmode="url">
           <h2>Khung avatar</h2>
-          <div class="tiles" id="tiles"></div>
+          <button class="bgp-pick frp-pick" id="fpick" type="button" aria-haspopup="dialog"></button>
           <label for="fs">Kích thước khung <b id="fsv"></b></label><input type="range" id="fs" min="100" max="170">
-          <label>Thêm khung của bạn (ảnh PNG, WebP, GIF nền trong suốt; hoặc video .webm nền trong suốt, video .mp4 nền đen sẽ tự bỏ phần đen)</label>
-          <div class="bgform"><input id="dn" placeholder="Tên khung" maxlength="40" aria-label="Tên khung"><input id="du" placeholder="https://link-anh-khung" inputmode="url" aria-label="Link ảnh khung"><button class="btn" id="dsave" type="button">Thêm khung</button><button class="btn" id="dcancel" type="button" hidden>Huỷ</button></div>
-          <div class="rows" id="dfl" style="margin-top:8px"></div>
           <h2>Viền màu (tuỳ chọn, dùng cùng khung)</h2>
           <div class="seg" id="frs"></div>
           <div class="row2" style="margin-top:12px;align-items:center"><label class="sw" style="margin:0"><input type="checkbox" id="fa" checked>Dùng màu chủ đạo</label><input type="color" id="fc" aria-label="Màu viền"></div>
@@ -192,6 +189,8 @@
 <dialog id="dlg"><form method="dialog"><p id="dmsg"></p><div class="ac"><button class="btn" type="submit" value="no">Huỷ</button><button class="btn bad" type="submit" value="yes">Xoá</button></div></form></dialog>
 <dialog id="bgdlg"><div class="bgp-w"><div class="bgp-h"><h3>Chọn hình nền</h3><button class="btn sm" id="bgx" type="button" aria-label="Đóng">✕</button></div><div class="bgp-grid" id="bggrid"></div></div></dialog>
 <dialog id="bgadd"><div class="bgp-w"><h3 id="bgat">Thêm hình nền</h3><div class="bgp-pv" id="bgpv"></div><label for="bn">Tên hình nền</label><input id="bn" placeholder="Ví dụ: Thành phố đêm" maxlength="40" autocomplete="off"><label for="bu">Link ảnh hoặc video</label><input id="bu" placeholder="https://..." inputmode="url" autocomplete="off"><p class="hint" id="bge" role="alert" style="color:var(--bad);margin:8px 0 0"></p><p class="hint">Chỉ nhận link bắt đầu bằng https. Hỗ trợ cả video .mp4 hoặc .webm (nên dưới 10 MB, dài 10 đến 15 giây, tự lặp lại). Khi bật chế độ tiết kiệm dữ liệu hoặc giảm chuyển động, video chỉ hiện khung hình đầu.</p><div class="ac" style="margin-top:14px"><button class="btn" id="bcancel" type="button">Huỷ</button><button class="btn pri" id="bsave" type="button">Xác nhận</button></div></div></dialog>
+<dialog id="frdlg"><div class="bgp-w"><div class="bgp-h"><h3>Chọn khung avatar</h3><button class="btn sm" id="frx" type="button" aria-label="Đóng">✕</button></div><div class="bgp-grid frp" id="frgrid"></div></div></dialog>
+<dialog id="fradd"><div class="bgp-w"><h3 id="frat">Thêm khung</h3><div class="bgp-pv frp-pv" id="frpv"></div><label for="fn">Tên khung</label><input id="fn" placeholder="Ví dụ: Khung mèo" maxlength="40" autocomplete="off"><label for="fu">Link ảnh hoặc video khung</label><input id="fu" placeholder="https://..." inputmode="url" autocomplete="off"><p class="hint" id="fre" role="alert" style="color:var(--bad);margin:8px 0 0"></p><p class="hint">Chỉ nhận link bắt đầu bằng https. Dùng ảnh PNG, WebP, GIF nền trong suốt; hoặc video .webm nền trong suốt. Video .mp4 nền đen sẽ tự bỏ phần đen.</p><div class="ac" style="margin-top:14px"><button class="btn" id="frcancel" type="button">Huỷ</button><button class="btn pri" id="frsave" type="button">Xác nhận</button></div></div></dialog>
 <div id="toast" class="toast" hidden></div>
 
 <script src="/assets/app.js?v=15"></script>
