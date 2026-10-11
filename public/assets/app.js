@@ -115,13 +115,14 @@ function frCard(id,name,url,f){const on=DEC===id,c=h('div',{class:'bgp-card'+(on
  if(f)th.append(h('div',{class:'bgp-ops'},h('button',{type:'button','aria-label':'Sửa khung',text:'✎',onclick:e=>{e.stopPropagation();openFrAdd(f)}}),h('button',{type:'button','aria-label':'Xoá khung',text:'✕',onclick:e=>{e.stopPropagation();delFr(f)}})));
  if(on)th.append(h('span',{class:'bgp-ck',text:'✓'}));
  c.append(th,h('div',{class:'bgp-name',text:name}));c.onclick=()=>chooseFr(id);c.onkeydown=e=>{if((e.key==='Enter'||e.key===' ')&&e.target===c){e.preventDefault();chooseFr(id)}};return c}
+function fitGrid(g){g.style.removeProperty('--gh');const k=g.children;if(k.length>9&&g.offsetParent){const c=k[8];g.style.setProperty('--gh',(c.offsetTop+c.offsetHeight+3)+'px')}}
 function drawFrGrid(){const add=h('div',{class:'bgp-card bgp-add',tabindex:'0',role:'button','aria-label':'Thêm khung',onclick:()=>openFrAdd(),onkeydown:e=>{if((e.key==='Enter'||e.key===' ')&&e.target===e.currentTarget){e.preventDefault();openFrAdd()}}},h('div',{class:'bgp-thumb',text:'+'}),h('div',{class:'bgp-name',text:'Thêm khung'}));
- $('#frgrid').replaceChildren(add,frCard('none','Không',''),...PF_DECOS.map(d=>frCard('b:'+d.id,d.name,d.uri)),...FRM.map(f=>frCard('c:'+f.id,f.name,f.url,f)))}
+ $('#frgrid').replaceChildren(add,frCard('none','Không',''),...PF_DECOS.map(d=>frCard('b:'+d.id,d.name,d.uri)),...FRM.map(f=>frCard('c:'+f.id,f.name,f.url,f)));fitGrid($('#frgrid'))}
 function pvFr(){const u=$('#fu').value.trim(),b=$('#frpv');b.replaceChildren();b.classList.remove('has');
  if(!/^https:\/\//.test(u)){b.append(h('span',{text:'Xem trước khung sẽ hiện ở đây'}));return}
  b.classList.add('has');b.append(frThumb(u))}
 function openFrAdd(f){editFr=f?f.id:null;$('#frat').textContent=f?'Sửa khung':'Thêm khung';$('#fn').value=f?f.name:'';$('#fu').value=f?f.url:'';$('#fre').textContent='';pvFr();$('#fradd').showModal()}
-$('#fpick').onclick=()=>{drawFrGrid();$('#frdlg').showModal()};
+$('#fpick').onclick=()=>{drawFrGrid();$('#frdlg').showModal();fitGrid($('#frgrid'))};
 $('#frx').onclick=()=>$('#frdlg').close();
 ['#frdlg','#fradd'].forEach(s=>$(s).addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.close()}));
 $('#frcancel').onclick=()=>$('#fradd').close();
@@ -215,7 +216,7 @@ function bgCard(b,T){const on=T.active===b.id,c=h('div',{class:'bgp-card'+(on?' 
  c.append(th,h('div',{class:'bgp-name',text:b.name}));
  c.onclick=()=>chooseBg(b.id);c.onkeydown=e=>{if((e.key==='Enter'||e.key===' ')&&e.target===c){e.preventDefault();chooseBg(b.id)}};return c}
 function drawGrid(){const T=tgt(),add=h('div',{class:'bgp-card bgp-add',tabindex:'0',role:'button','aria-label':'Thêm hình nền',onclick:()=>openBgAdd(),onkeydown:e=>{if((e.key==='Enter'||e.key===' ')&&e.target===e.currentTarget){e.preventDefault();openBgAdd()}}},h('div',{class:'bgp-thumb',text:'+'}),h('div',{class:'bgp-name',text:'Thêm hình nền'}));
- $('#bggrid').replaceChildren(add,...G.backgrounds.map(b=>bgCard(b,T)))}
+ $('#bggrid').replaceChildren(add,...G.backgrounds.map(b=>bgCard(b,T)));fitGrid($('#bggrid'))}
 function pvBg(){const u=$('#bu').value.trim(),b=$('#bgpv');b.replaceChildren();b.classList.remove('has');
  if(!/^https:\/\//.test(u)){b.append(h('span',{text:'Xem trước hình nền sẽ hiện ở đây'}));return}
  b.classList.add('has');
@@ -235,7 +236,8 @@ function drawSet(){
  $('#rb').value=T.blur;$('#vb').textContent=T.blur+'px';$('#rd').value=T.dim;$('#vd').textContent=T.dim+'%';
  $('#gl').checked=T.glass;$$('#an input').forEach(i=>i.checked=i.value===T.anim);
  $$('#ly input').forEach(i=>i.checked=i.value===G.layout.links);$$('#um input').forEach(i=>i.checked=i.value===(localStorage.getItem('noir_ui')||'auto'))}
-$('#bpick').onclick=()=>{drawGrid();$('#bgdlg').showModal()};
+$('#bpick').onclick=()=>{drawGrid();$('#bgdlg').showModal();fitGrid($('#bggrid'))};
+addEventListener('resize',()=>{if($('#bgdlg').open)fitGrid($('#bggrid'));if($('#frdlg').open)fitGrid($('#frgrid'))});
 $('#bgx').onclick=()=>$('#bgdlg').close();
 ['#bgdlg','#bgadd'].forEach(s=>$(s).addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.close()}));
 $('#bcancel').onclick=()=>$('#bgadd').close();
