@@ -251,26 +251,53 @@ async function admin(request, env, url) {
       const now = Date.now();
       try {
         await env.DB.prepare(
-          'INSERT INTO scripts (id, title, description, game, image_url, tab_id, status, code, published, created_at, updated_at, version, changelog, sort) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT MIN(sort) FROM scripts), 0) - 1)'
-        ).bind(id, f.title, f.description, f.game, f.image_url, f.tab_id, f.status, f.code, f.published, now, now, f.version, f.changelog).run();
+          'INSERT INTO scripts (id, title, description, game, image_url, tab_id, status, code, published, created_at, updated_at, version, changelog, features, howto, executors, sort) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT MIN(sort) FROM scripts), 0) - 1)'
+        ).bind(id, f.title, f.description, f.game, f.image_url, f.tab_id, f.status, f.code, f.published, now, now, f.version, f.changelog, f.features, f.howto, f.executors).run();
       } catch (e) {
         if (String(e).includes('UNIQUE')) throw new HttpError(409, 'ID này đã tồn tại');
         throw e;
       }
+      if (f.version) {
+        try { await env.DB.prepare('INSERT INTO script_versions (script_id, version, changelog, created_at) VALUES (?, ?, ?, ?)').bind(id, f.version, f.changelog, now).run(); } catch (e) { /* chưa chạy migration 008 */ }
+      }
       return json({ ok: true, id });
+    }
+
+    const vm = path.match(/^\/scripts\/([a-z0-9-]{2,40})\/versions$/);
+    if (vm && method === 'GET') {
+      try { return json((await env.DB.prepare('SELECT id, version, changelog, created_at FROM script_versions WHERE script_id = ? ORDER BY id DESC').bind(vm[1]).all()).results); }
+      catch (e) { return json([]); }
+    }
+    const dv = path.match(/^\/versions\/(\d+)$/);
+    if (dv && method === 'DELETE') {
+      await env.DB.prepare('DELETE FROM script_versions WHERE id = ?').bind(Number(dv[1])).run();
+      return json({ ok: true });
     }
 
     const m = path.match(/^\/scripts\/([a-z0-9-]{2,40})$/);
     if (m && method === 'PUT') {
       const f = scriptFields(await readJson(request));
-      const r = await env.DB.prepare(
-        'UPDATE scripts SET title = ?, description = ?, game = ?, image_url = ?, tab_id = ?, status = ?, code = ?, published = ?, updated_at = ?, version = ?, changelog = ? WHERE id = ?'
-      ).bind(f.title, f.description, f.game, f.image_url, f.tab_id, f.status, f.code, f.published, Date.now(), f.version, f.changelog, m[1]).run();
-      if (!r.meta.changes) throw new HttpError(404, 'Không tìm thấy script');
+      const cur = await env.DB.prepare('SELECT version FROM scripts WHERE id = ?').bind(m[1]).first();
+      if (!cur) throw new HttpError(404, 'Không tìm thấy script');
+      const now = Date.now();
+      await env.DB.prepare(
+        'UPDATE scripts SET title = ?, description = ?, game = ?, image_url = ?, tab_id = ?, status = ?, code = ?, published = ?, updated_at = ?, version = ?, changelog = ?, features = ?, howto = ?, executors = ? WHERE id = ?'
+      ).bind(f.title, f.description, f.game, f.image_url, f.tab_id, f.status, f.code, f.published, now, f.version, f.changelog, f.features, f.howto, f.executors, m[1]).run();
+      if (f.version) {
+        try { // đổi số phiên bản thì ghi thêm vào lịch sử; giữ nguyên số phiên bản thì chỉ sửa ghi chú của mục hiện tại
+          let done = false;
+          if (f.version === (cur.version || '')) {
+            const r = await env.DB.prepare('UPDATE script_versions SET changelog = ? WHERE id = (SELECT id FROM script_versions WHERE script_id = ? AND version = ? ORDER BY id DESC LIMIT 1)').bind(f.changelog, m[1], f.version).run();
+            done = r.meta.changes > 0;
+          }
+          if (!done) await env.DB.prepare('INSERT INTO script_versions (script_id, version, changelog, created_at) VALUES (?, ?, ?, ?)').bind(m[1], f.version, f.changelog, now).run();
+        } catch (e) { /* chưa chạy migration 008 */ }
+      }
       return json({ ok: true });
     }
     if (m && method === 'DELETE') {
       await env.DB.prepare('DELETE FROM scripts WHERE id = ?').bind(m[1]).run();
+      try { await env.DB.prepare('DELETE FROM script_versions WHERE script_id = ?').bind(m[1]).run(); } catch (e) { /* bỏ qua */ }
       return json({ ok: true });
     }
 
@@ -304,6 +331,7 @@ async function admin(request, env, url) {
         tabs: await q('SELECT id, name, kind, sort FROM tabs ORDER BY id'),
         links: await getLinks(env),
         scripts: await q('SELECT * FROM scripts ORDER BY created_at'),
+        versions: await q('SELECT script_id, version, changelog, created_at FROM script_versions ORDER BY id').catch(() => []),
         daily_stats: await q('SELECT day, kind, count FROM daily_stats'),
       });
       return new Response(body, { headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Disposition': 'attachment; filename="noir-backup.json"' } });
@@ -315,7 +343,9 @@ async function admin(request, env, url) {
       try { b = await request.json(); } catch (e) { throw new HttpError(400, 'File không phải JSON hợp lệ'); }
       if (!b || b.version !== 1 || !Array.isArray(b.scripts) || !Array.isArray(b.links) || !Array.isArray(b.tabs)) throw new HttpError(400, 'Đây không phải file sao lưu của NOIR');
       const n = (v, d = 0) => (Number.isFinite(Number(v)) ? Math.trunc(Number(v)) : d);
-      const st = ['links', 'scripts', 'tabs', 'daily_stats'].map((t) => env.DB.prepare('DELETE FROM ' + t));
+      let hasV = true;
+      try { await env.DB.prepare('SELECT 1 FROM script_versions LIMIT 1').first(); } catch (e) { hasV = false; }
+      const st = ['links', 'scripts', 'tabs', 'daily_stats'].concat(hasV ? ['script_versions'] : []).map((t) => env.DB.prepare('DELETE FROM ' + t));
       b.tabs.forEach((t) => st.push(env.DB.prepare('INSERT INTO tabs (id, name, kind, sort) VALUES (?, ?, ?, ?)').bind(n(t.id), str(t.name, 24) || 'Tab', t.kind === 'script' ? 'script' : 'social', n(t.sort))));
       b.links.forEach((l, i) => {
         const u = httpsUrl(str(l.url, 500)), label = str(l.label, 40);
@@ -324,10 +354,16 @@ async function admin(request, env, url) {
       b.scripts.forEach((x) => {
         const id = str(x.id, 40), code = typeof x.code === 'string' ? x.code : '';
         if (!ID_RE.test(id) || !str(x.title, 80) || !code || code.length > 200000) return;
-        st.push(env.DB.prepare('INSERT INTO scripts (id, title, description, game, image_url, tab_id, status, code, published, runs, copies, created_at, updated_at, version, changelog, sort) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        st.push(env.DB.prepare('INSERT INTO scripts (id, title, description, game, image_url, tab_id, status, code, published, runs, copies, created_at, updated_at, version, changelog, features, howto, executors, sort) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
           .bind(id, str(x.title, 80), str(x.description, 500), str(x.game, 80), x.image_url ? (httpsUrl(str(x.image_url, 500)) || '') : '', n(x.tab_id),
-            STATUSES.includes(x.status) ? x.status : 'working', code, x.published ? 1 : 0, n(x.runs), n(x.copies), n(x.created_at, Date.now()), n(x.updated_at, Date.now()), str(x.version, 20), str(x.changelog, 300), n(x.sort)));
+            STATUSES.includes(x.status) ? x.status : 'working', code, x.published ? 1 : 0, n(x.runs), n(x.copies), n(x.created_at, Date.now()), n(x.updated_at, Date.now()), str(x.version, 20), str(x.changelog, 300), str(x.features, 600), str(x.howto, 600), str(x.executors, 100), n(x.sort)));
       });
+      if (hasV) {
+        (Array.isArray(b.versions) ? b.versions : []).forEach((v) => {
+          const sid = str(v.script_id, 40), ver = str(v.version, 20);
+          if (ID_RE.test(sid) && ver) st.push(env.DB.prepare('INSERT INTO script_versions (script_id, version, changelog, created_at) VALUES (?, ?, ?, ?)').bind(sid, ver, str(v.changelog, 300), n(v.created_at, Date.now())));
+        });
+      }
       (Array.isArray(b.daily_stats) ? b.daily_stats : []).forEach((r) => {
         if (/^\d{4}-\d{2}-\d{2}$/.test(r.day || '') && ['view', 'copy', 'run'].includes(r.kind)) st.push(env.DB.prepare('INSERT INTO daily_stats (day, kind, count) VALUES (?, ?, ?)').bind(r.day, r.kind, Math.max(0, n(r.count))));
       });
@@ -397,5 +433,5 @@ function scriptFields(b) {
   const image_url = b.image_url ? httpsUrl(str(b.image_url, 500)) : '';
   if (image_url === null) throw new HttpError(400, 'Ảnh game phải là link https');
   const tab_id = Number.isInteger(b.tab_id) && b.tab_id >= 0 ? b.tab_id : 0;
-  return { title, code, status, image_url, tab_id, version: str(b.version, 20), changelog: str(b.changelog, 300), description: str(b.description, 500), game: str(b.game, 80), published: b.published ? 1 : 0 };
+  return { title, code, status, image_url, tab_id, version: str(b.version, 20), changelog: str(b.changelog, 300), features: str(b.features, 600), howto: str(b.howto, 600), executors: str(b.executors, 100), description: str(b.description, 500), game: str(b.game, 80), published: b.published ? 1 : 0 };
 }
