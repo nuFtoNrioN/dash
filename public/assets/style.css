@@ -1,4 +1,4 @@
-:root{--ver:16}
+:root{--ver:17}
 :root{color-scheme:dark;--bg:#14121c;--s1:#1b1925;--s2:#242134;--line:#302c43;--tx:#ece8f6;--mu:#9a94b0;--ac:#9370ff;--ac2:#b9a6ff;--ok:#5fd38d;--warn:#f0b429;--bad:#ef6b73;--ui:'Be Vietnam Pro',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace}
 *{box-sizing:border-box;margin:0}
 body{background:var(--bg);color:var(--tx);font:15px/1.5 var(--ui);-webkit-text-size-adjust:100%}
@@ -271,3 +271,19 @@ html[data-ui=mobile] .sc-card{flex-wrap:wrap}
 html[data-ui=mobile] .sc-th{width:72px}
 html[data-ui=mobile] .sc-ac{width:100%}
 html[data-ui=mobile] .sc-ac .btn{width:100%}
+
+/* v17: chế độ tab (dropdown, popup chức năng) */
+.tm-k{width:auto;flex:none;min-width:150px}
+dialog#tmdlg{max-width:460px;width:calc(100% - 24px);padding:0;max-height:calc(100dvh - 32px)}
+.tm-w{padding:18px}
+.tm-w h3{font-size:17px;font-weight:600;margin:0 0 12px}
+.tm-l{display:grid;margin-top:4px}
+.tm-f{margin:0;padding:11px 0;border-bottom:1px solid var(--line)}
+.tm-f b{margin-left:0}
+.tm-f span{display:flex;flex-direction:column;gap:1px;min-width:0}.tm-f small{color:var(--mu);font-size:13px}
+.tm-t{margin:14px 0 0}
+.tm-w textarea{min-height:120px}
+html[data-ui=mobile] .tm-k{flex:1;min-width:0}
+html[data-ui=mobile] #trows>*{grid-template-columns:1fr}
+html[data-ui=mobile] #trows .n{grid-column:1;grid-row:auto;text-align:left;display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+html[data-ui=mobile] #trows .m{grid-row:auto;margin-top:2px}
