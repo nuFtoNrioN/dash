@@ -1,5 +1,5 @@
 // Kiểm tra các file giao diện có cùng một bản không (tránh chép thiếu file)
-(function(){const c=getComputedStyle(document.documentElement).getPropertyValue('--ver').trim();if(c!=='16'||window.LOOK_V!==16){const b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99;padding:10px 14px;background:#f0b429;color:#14121c;font:14px system-ui';b.textContent='Các file giao diện chưa được cập nhật đồng bộ (index.html, style.css, app.js, look.js phải cùng bản 16). Hãy chép đủ rồi tải lại trang.';document.body.append(b)}})();
+(function(){const c=getComputedStyle(document.documentElement).getPropertyValue('--ver').trim();if(c!=='17'||window.LOOK_V!==17){const b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99;padding:10px 14px;background:#f0b429;color:#14121c;font:14px system-ui';b.textContent='Các file giao diện chưa được cập nhật đồng bộ (index.html, style.css, app.js, look.js phải cùng bản 17). Hãy chép đủ rồi tải lại trang.';document.body.append(b)}})();
 const $=(s)=>document.querySelector(s),$$=(s)=>[...document.querySelectorAll(s)];
 const h=(t,p={},...k)=>{const e=document.createElement(t);for(const[a,v]of Object.entries(p)){if(a==='class')e.className=v;else if(a==='text')e.textContent=v;else if(a.startsWith('on'))e.addEventListener(a.slice(2),v);else e.setAttribute(a,v)}e.append(...k);return e};
 const ST={working:['Đang chạy','ok'],patched:['Đã patch','bad'],outdated:['Cũ','warn']};
@@ -146,11 +146,13 @@ const detect=(u)=>{try{const hn=new URL(u).hostname.replace(/^www\./,''),M={'dis
 function lrow(l={}){const slug=(l.icon||'').startsWith('si:')?l.icon.slice(3):'';
  const pf=h('select',{'aria-label':'Nền tảng'},h('option',{value:'',text:'Nền tảng khác'}),...Object.entries(PLAT).map(([k,v])=>h('option',{value:k,text:v[0]})));pf.value=PLAT[slug]?slug:'';
  const u=h('input',{class:'u',placeholder:'Dán link vào đây, ví dụ https://discord.gg/...',maxlength:'500',inputmode:'url','aria-label':'URL'}),lb=h('input',{placeholder:'Tên hiển thị',maxlength:'40','aria-label':'Tên'});
- u.value=l.url||'';lb.value=l.label||'';const nt=h('input',{class:'nt',placeholder:'Mô tả ngắn (không bắt buộc)',maxlength:'80','aria-label':'Mô tả'});nt.value=l.note||'';const sel=tabSel('social',l.tab_id);
+ u.value=l.url||'';lb.value=l.label||'';const nt=h('input',{class:'nt',placeholder:'Mô tả ngắn (không bắt buộc)',maxlength:'80','aria-label':'Mô tả'});nt.value=l.note||'';const sel=linkSel(l);
  u.addEventListener('input',()=>{const k=detect(u.value);if(k&&!pf.value){pf.value=k;if(!lb.value)lb.value=PLAT[k][0]}});
  pf.addEventListener('change',()=>{if(pf.value&&!lb.value)lb.value=PLAT[pf.value][0]});
  const r=h('div',{class:'lr'},u,h('div',{class:'ac'},h('button',{class:'btn sm','aria-label':'Lên',text:'↑',onclick:()=>{r.previousElementSibling&&r.parentNode.insertBefore(r,r.previousElementSibling);poke()}}),h('button',{class:'btn sm','aria-label':'Xuống',text:'↓',onclick:()=>{r.nextElementSibling&&r.parentNode.insertBefore(r.nextElementSibling,r);poke()}}),h('button',{class:'btn sm bad','aria-label':'Xoá link',text:'Xoá',onclick:()=>{r.remove();poke()}})),pf,lb,nt,sel);
- r._g=()=>({icon:pf.value?'si:'+pf.value:'🔗',label:lb.value,url:u.value,tab_id:Number(sel.value),note:nt.value});return r}
+ const md=()=>(sel.value.split('|')[1]||'social');
+ const sync=()=>{const m=md();pf.disabled=m==='media';u.placeholder=m==='media'?'Link ảnh hoặc video, ví dụ https://.../anh.jpg':m==='link'?'Dán link cần chia sẻ, ví dụ https://...':'Dán link vào đây, ví dụ https://discord.gg/...';lb.placeholder=m==='media'?'Chú thích (không bắt buộc cũng được)':'Tên hiển thị'};sel.addEventListener('change',sync);sync();
+ r._g=()=>{const p=(sel.value||'').split('|');return{icon:pf.value&&md()!=='media'?'si:'+pf.value:'🔗',label:lb.value,url:u.value,tab_id:Number(p[0])||0,mode:p[1]||'',note:nt.value}};return r}
 const lv=()=>JSON.stringify($$('.lr').map(r=>r._g()));
 function fillLinks(){const b=$('#lrows');b.replaceChildren(...S.links.map(lrow));track(lv)}
 $('#al').onclick=()=>{const r=lrow();$('#lrows').append(r);r.querySelectorAll('input')[1].focus();poke()};
@@ -202,14 +204,39 @@ $('#ds').onclick=()=>run(async()=>{if(!await ask('Xoá script "'+$('#st').value+
 $('#cc').onclick=async()=>{try{await navigator.clipboard.writeText($('#cmt').textContent);toast('Đã copy lệnh')}catch{toast('Trình duyệt chặn copy, hãy chọn và copy thủ công',true)}};
 
 /* tabs */
-function tabSel(kind,cur){const s=h('select',{'aria-label':'Tab'}),t=S.tabs.filter(x=>x.kind===kind);t.forEach(x=>s.append(h('option',{value:x.id,text:x.name})));const d=t.find(x=>x.id===cur)||t[0];if(d)s.value=d.id;return s}
+function tabSel(feat,cur){const s=h('select',{'aria-label':'Tab'}),t=S.tabs.filter(x=>tabFeats(x).includes(feat));t.forEach(x=>s.append(h('option',{value:x.id,text:x.name})));const d=pickTab(S.tabs,feat,cur);if(d)s.value=d.id;return s}
+/* mỗi lựa chọn là một tab (tab "Khác" tách theo từng kiểu link nó bật), giá trị dạng "idTab|kiểu" */
+function linkSel(l){const s=h('select',{'aria-label':'Tab và kiểu hiển thị'});S.tabs.forEach(t=>tabFeats(t).filter(k=>LINK_FEATS.includes(k)).forEach(k=>s.append(h('option',{value:t.id+'|'+k,text:t.kind==='custom'?t.name+' · '+tabModeName(k):t.name}))));const p=linkPlace(S.tabs,l);if(p.tab)s.value=p.tab.id+'|'+p.mode;return s}
 function fillSb(cur){const n=tabSel('script',cur);$('#sb').innerHTML=n.innerHTML;$('#sb').value=n.value}
-function moveTab(id,dir){const a=S.tabs,i=a.findIndex(t=>t.id===id);let j=i+dir;while(a[j]&&a[j].kind!==a[i].kind)j+=dir;if(!a[j])return;[a[i],a[j]]=[a[j],a[i]];run(async()=>{await api('/tabs-order','PUT',{ids:a.map(t=>t.id)});await load();drawTabs()})}
-function drawTabs(){$('#trows').replaceChildren(...S.tabs.map(t=>h('div',{},h('div',{class:'t'},h('i',{text:t.name}),h('span',{class:'tag',text:t.kind==='social'?'Social':'Script'})),h('div',{class:'n'},
+function moveTab(id,dir){const a=S.tabs,i=a.findIndex(t=>t.id===id),j=i+dir;if(!a[j])return;[a[i],a[j]]=[a[j],a[i]];run(async()=>{await api('/tabs-order','PUT',{ids:a.map(t=>t.id)});await load();drawTabs()})}
+function tabMeta(t){if(t.kind==='custom')return tabFeats(t).map(k=>(TAB_FEATS.find(x=>x[0]===k)||[k,k])[1]).join(', ');if(t.kind==='note')return t.body?t.body.replace(/\s+/g,' ').slice(0,60):'Chưa có nội dung';return ''}
+/* popup cấu hình tab: chế độ + (tab Khác) bật tắt từng chức năng + (ghi chú) nội dung. Trả về {kind,opts,body} hoặc null */
+function tabDlg(init,title){return new Promise(res=>{const d=$('#tmdlg'),K=$('#tmk'),L=$('#tml'),B=$('#tmb'),E=$('#tme');let out=null;
+ $('#tmt').textContent=title;E.textContent='';
+ K.replaceChildren(...TAB_MODES.map(([k,n])=>h('option',{value:k,text:n})));K.value=init.kind;
+ L.replaceChildren(...TAB_FEATS.map(([k,n,ds])=>h('label',{class:'sw tm-f'},h('input',{type:'checkbox',value:k}),h('span',{},h('b',{text:n}),h('small',{text:ds})))));
+ const on=tabOpts(init).f;L.querySelectorAll('input').forEach(i=>{i.checked=!!on[i.value]});$('#tmtools').checked=tabOpts(init).tools;B.value=init.body||'';
+ const feats=()=>[...L.querySelectorAll('input:checked')].map(i=>i.value);
+ const sync=()=>{const k=K.value,c=k==='custom',f=feats();$('#tmfe').hidden=!c;$('#tmtl').hidden=!(c&&f.includes('script'));$('#tmbd').hidden=!(k==='note'||(c&&f.includes('note')));$('#tmh').textContent=(TAB_MODES.find(x=>x[0]===k)||[])[2]||'';E.textContent=''};
+ K.onchange=sync;L.onchange=sync;sync();
+ $('#tmok').onclick=(e)=>{const k=K.value,f=feats();if(k==='custom'&&!f.length){e.preventDefault();E.textContent='Hãy bật ít nhất một chức năng.';return}
+  const fo={};f.forEach(x=>{fo[x]=true});out={kind:k,opts:k==='custom'?{f:fo,tools:$('#tmtools').checked}:undefined,body:(k==='note'||(k==='custom'&&fo.note))?B.value:''}};
+ d.returnValue='';d.onclose=()=>res(d.returnValue==='yes'?out:null);d.onclick=(e)=>{if(e.target===d)d.close()};d.showModal()})}
+function drawTabs(){$('#trows').replaceChildren(...S.tabs.map(t=>h('div',{},h('div',{class:'t'},h('i',{text:t.name}),h('span',{class:'tag',text:tabModeName(t.kind)})),h('div',{class:'n'},
  h('button',{class:'btn sm','aria-label':'Lên',text:'↑',onclick:()=>moveTab(t.id,-1)}),' ',h('button',{class:'btn sm','aria-label':'Xuống',text:'↓',onclick:()=>moveTab(t.id,1)}),' ',
+ h('button',{class:'btn sm',text:'Chế độ',onclick:()=>run(async()=>{const r=await tabDlg(t,'Cấu hình tab "'+t.name+'"');if(!r)return;await api('/tabs/'+t.id,'PUT',r);await load();drawTabs();toast('Đã lưu tab')})}),' ',
  h('button',{class:'btn sm',text:'Đổi tên',onclick:()=>run(async()=>{const n=prompt('Tên tab mới',t.name);if(!n||!n.trim())return;await api('/tabs/'+t.id,'PUT',{name:n});await load();drawTabs();toast('Đã lưu tab')})}),' ',
- h('button',{class:'btn sm bad',text:'Xoá',onclick:()=>run(async()=>{if(!await ask('Xoá tab "'+t.name+'"? Nội dung trong tab sẽ chuyển về tab đầu tiên cùng loại.','Xoá tab'))return;await api('/tabs/'+t.id,'DELETE');await load();drawTabs();toast('Đã xoá tab')})})))))}
-$('#at').onclick=()=>run(async()=>{const n=$('#tn').value.trim();if(!n){toast('Nhập tên tab trước',true);return}await api('/tabs','POST',{name:n,kind:$('#tk input:checked').value});$('#tn').value='';await load();drawTabs();toast('Đã tạo tab')});
+ h('button',{class:'btn sm bad',text:'Xoá',onclick:()=>run(async()=>{if(!await ask('Xoá tab "'+t.name+'"? Link và script trong tab sẽ chuyển về tab mặc định của từng loại.','Xoá tab'))return;await api('/tabs/'+t.id,'DELETE');await load();drawTabs();toast('Đã xoá tab')})})),
+ ...(tabMeta(t)?[h('div',{class:'m',text:tabMeta(t)})]:[]))))}
+/* tạo tab: dropdown chế độ; chọn "Khác" thì mở popup bật tắt chức năng */
+let NEWCFG=null;
+const tkSync=()=>{const k=$('#tk').value;$('#tkcfg').hidden=k!=='custom';$('#tkh').textContent=(TAB_MODES.find(x=>x[0]===k)||[])[2]||'';if(k==='custom'&&NEWCFG&&NEWCFG.kind==='custom')$('#tkcfg').textContent='Chức năng ('+Object.keys(NEWCFG.opts.f).length+')';else $('#tkcfg').textContent='Chức năng'};
+async function newCfg(){const r=await tabDlg(NEWCFG||{kind:'custom'},'Chức năng của tab mới');if(r){NEWCFG=r;$('#tk').value=r.kind}else if(!NEWCFG)$('#tk').value='social';tkSync();return r}
+$('#tk').replaceChildren(...TAB_MODES.map(([k,n])=>h('option',{value:k,text:n})));tkSync();
+$('#tk').onchange=()=>{if($('#tk').value==='custom')run(newCfg);else{NEWCFG=null;tkSync()}};
+$('#tkcfg').onclick=()=>run(newCfg);
+$('#at').onclick=()=>run(async()=>{const n=$('#tn').value.trim();if(!n){toast('Nhập tên tab trước',true);return}let k=$('#tk').value,c=NEWCFG&&NEWCFG.kind===k?NEWCFG:null;if(k==='custom'&&!c){c=await newCfg();if(!c)return;k=c.kind}
+ await api('/tabs','POST',{name:n,kind:k,opts:c?c.opts:undefined,body:c?c.body:''});$('#tn').value='';NEWCFG=null;$('#tk').value='social';tkSync();await load();drawTabs();toast('Đã tạo tab')});
 
 /* settings */
 const mergeSet=(s)=>normSettings(s);
