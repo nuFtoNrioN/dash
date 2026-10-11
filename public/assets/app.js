@@ -86,7 +86,7 @@ $$('#rng input').forEach(i=>i.onchange=()=>run(async()=>{RANGE=+i.value;await lo
 $('#osel').onchange=()=>{SEL=$('#osel').value;drawOverview()};
 
 /* profile */
-let BD=[],FRM=[],DEC='none',editDf=null;
+let BD=[],FRM=[],DEC='none',editFr=null,frT=0;
 function mkSeg(box,name,list){box.replaceChildren(...list.map(([v,t])=>h('label',{},h('input',{type:'radio',name,value:v}),h('span',{text:t}))))}
 mkSeg($('#frs'),'fr',PF_FRAMES);mkSeg($('#fxs'),'fx',PF_FX);
 const pick=(box)=>($('#'+box+' input:checked')||{}).value;
@@ -94,25 +94,46 @@ function readPR(){return{name:$('#pn').value,tagline:$('#pt').value,pronouns:$('
 const pv=()=>JSON.stringify(readPR());
 function prev(){$('#pvbox').replaceChildren(h('div',{class:'pvwrap'},buildProfile(readPR())))}
 function drawBd(){$('#bdl').replaceChildren(...BD.map((t,i)=>h('span',{class:'chip'},t,h('button',{type:'button','aria-label':'Xoá huy hiệu',text:'✕',onclick:()=>{BD.splice(i,1);drawBd();prev();poke()}}))))}
-function fillProfile(){const p=S.profile||{};$('#pn').value=p.name||'';$('#pt').value=p.tagline||'';$('#pp').value=p.pronouns||'';$('#pl').value=p.location||'';$('#ps').value=p.status||'';$('#pb').value=p.bio||'';$('#pa').value=p.avatar_url||'';$('#pr').value=p.banner_url||'';DEC=p.deco||'none';FRM=(p.frames||[]).map(f=>({...f}));$('#fs').value=p.frame_scale||130;resetDf();drawFrames();
+function fillProfile(){const p=S.profile||{};$('#pn').value=p.name||'';$('#pt').value=p.tagline||'';$('#pp').value=p.pronouns||'';$('#pl').value=p.location||'';$('#ps').value=p.status||'';$('#pb').value=p.bio||'';$('#pa').value=p.avatar_url||'';$('#pr').value=p.banner_url||'';DEC=p.deco||'none';FRM=(p.frames||[]).map(f=>({...f}));$('#fs').value=p.frame_scale||130;drawFrames();
  $$('#frs input').forEach(i=>i.checked=i.value===(p.frame||'none'));$$('#fxs input').forEach(i=>i.checked=i.value===(p.effect||'none'));$('#fa').checked=!p.frame_color;$('#fc').value=p.frame_color||'#9370ff';BD=[...(p.badges||[])];drawBd();prev();track(pv)}
 $('#v-profile').addEventListener('input',prev);
 $('#bda').onclick=()=>{const t=$('#bd').value.trim();if(!t)return;if(BD.length>=8){toast('Tối đa 8 huy hiệu',true);return}BD.push(t);$('#bd').value='';drawBd();prev();poke()};
 $('#sp').onclick=()=>run(async()=>{const p=readPR();await api('/profile','PUT',p);S.profile=p;track(pv);toast('Đã lưu hồ sơ')});
 
 /* khung avatar */
-function tile(id,name,url){const t=h('button',{class:'tl'+(DEC===id?' on':''),type:'button',title:name,'aria-label':name,onclick:()=>{DEC=id;drawFrames();prev();poke()}},h('span',{class:'tla',text:url?'':'∅'}));
- if(url){const v=isVid(url),o=v?mkVideo(url):h('img',{src:url,alt:''});if(v&&!/\.webm(\?|#|$)/i.test(url))o.style.mixBlendMode='screen';o.style.width=o.style.height=($('#fs').value/130*52)+'px';t.append(o)}return t}
+const frName=(d)=>d==='none'?'Không dùng khung':((d.startsWith('b:')?PF_DECOS.find(z=>z.id===d.slice(2)):FRM.find(z=>z.id===d.slice(2)))||{}).name||'Khung';
+const frUrl=(d)=>d==='none'?'':((d.startsWith('b:')?PF_DECOS.find(z=>z.id===d.slice(2)):FRM.find(z=>z.id===d.slice(2)))||{})[d.startsWith('b:')?'uri':'url']||'';
+function frThumb(url){const box=h('div',{class:'bgp-thumb frp-t'});box.style.setProperty('--fs',$('#fs').value);box.append(h('span',{class:'frp-av'}));
+ if(url){let o;if(isVid(url)){o=mkVideo(url);if(!/\.webm(\?|#|$)/i.test(url))o.style.mixBlendMode='screen'}
+  else{o=h('img',{alt:'',loading:'lazy'});o.onerror=()=>{o.remove();box.append(h('span',{class:'bgp-err',text:'Không tải được'}))};o.src=url}
+  o.classList.add('frp-fr');box.append(o)}return box}
 function drawFrames(){$('#fsv').textContent=$('#fs').value+'%';
- $('#tiles').replaceChildren(tile('none','Không',''),...PF_DECOS.map(d=>tile('b:'+d.id,d.name,d.uri)),...FRM.map(f=>tile('c:'+f.id,f.name,f.url)));
- $('#dfl').replaceChildren(...FRM.map(f=>h('div',{},h('div',{class:'t'},h('i',{text:f.name})),h('div',{class:'n'},
-  h('button',{class:'btn sm',type:'button',text:'Sửa',onclick:()=>{editDf=f.id;$('#dn').value=f.name;$('#du').value=f.url;$('#dsave').textContent='Cập nhật';$('#dcancel').hidden=false;$('#dn').focus()}}),' ',
-  h('button',{class:'btn sm bad',type:'button',text:'Xoá',onclick:()=>{FRM=FRM.filter(z=>z.id!==f.id);if(DEC==='c:'+f.id)DEC='none';drawFrames();prev();poke()}})))))}
-function resetDf(){editDf=null;$('#dn').value=$('#du').value='';$('#dsave').textContent='Thêm khung';$('#dcancel').hidden=true}
-$('#dcancel').onclick=resetDf;
-$('#dsave').onclick=()=>{const n=$('#dn').value.trim(),u=$('#du').value.trim();if(!n||!/^https:\/\//.test(u)){toast('Nhập tên và link ảnh bắt đầu bằng https',true);return}
- if(editDf){const f=FRM.find(z=>z.id===editDf);f.name=n;f.url=u}else{if(FRM.length>=20){toast('Tối đa 20 khung',true);return}const id='f'+Date.now().toString(36);FRM.push({id,name:n,url:u});DEC='c:'+id}
- resetDf();drawFrames();prev();poke()};
+ $('#fpick').replaceChildren(frThumb(frUrl(DEC)),h('b',{text:frName(DEC)}),h('small',{text:'Đổi'}));if($('#frdlg').open)drawFrGrid()}
+function chooseFr(id){DEC=id;$('#frdlg').close();drawFrames();prev();poke()}
+function delFr(f){run(async()=>{if(!await ask('Xoá khung \"'+f.name+'\"?','Xoá'))return;FRM=FRM.filter(z=>z.id!==f.id);if(DEC==='c:'+f.id)DEC='none';drawFrames();prev();poke()})}
+function frCard(id,name,url,f){const on=DEC===id,c=h('div',{class:'bgp-card'+(on?' on':''),tabindex:'0',role:'button','aria-pressed':String(on),title:name}),th=frThumb(url);
+ if(f)th.append(h('div',{class:'bgp-ops'},h('button',{type:'button','aria-label':'Sửa khung',text:'✎',onclick:e=>{e.stopPropagation();openFrAdd(f)}}),h('button',{type:'button','aria-label':'Xoá khung',text:'✕',onclick:e=>{e.stopPropagation();delFr(f)}})));
+ if(on)th.append(h('span',{class:'bgp-ck',text:'✓'}));
+ c.append(th,h('div',{class:'bgp-name',text:name}));c.onclick=()=>chooseFr(id);c.onkeydown=e=>{if((e.key==='Enter'||e.key===' ')&&e.target===c){e.preventDefault();chooseFr(id)}};return c}
+function drawFrGrid(){const add=h('div',{class:'bgp-card bgp-add',tabindex:'0',role:'button','aria-label':'Thêm khung',onclick:()=>openFrAdd(),onkeydown:e=>{if((e.key==='Enter'||e.key===' ')&&e.target===e.currentTarget){e.preventDefault();openFrAdd()}}},h('div',{class:'bgp-thumb',text:'+'}),h('div',{class:'bgp-name',text:'Thêm khung'}));
+ $('#frgrid').replaceChildren(add,frCard('none','Không',''),...PF_DECOS.map(d=>frCard('b:'+d.id,d.name,d.uri)),...FRM.map(f=>frCard('c:'+f.id,f.name,f.url,f)))}
+function pvFr(){const u=$('#fu').value.trim(),b=$('#frpv');b.replaceChildren();b.classList.remove('has');
+ if(!/^https:\/\//.test(u)){b.append(h('span',{text:'Xem trước khung sẽ hiện ở đây'}));return}
+ b.classList.add('has');b.append(frThumb(u))}
+function openFrAdd(f){editFr=f?f.id:null;$('#frat').textContent=f?'Sửa khung':'Thêm khung';$('#fn').value=f?f.name:'';$('#fu').value=f?f.url:'';$('#fre').textContent='';pvFr();$('#fradd').showModal()}
+$('#fpick').onclick=()=>{drawFrGrid();$('#frdlg').showModal()};
+$('#frx').onclick=()=>$('#frdlg').close();
+['#frdlg','#fradd'].forEach(s=>$(s).addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.close()}));
+$('#frcancel').onclick=()=>$('#fradd').close();
+['#fn','#fu'].forEach(s=>$(s).addEventListener('input',()=>{$('#fre').textContent=''}));
+$('#fu').addEventListener('input',()=>{clearTimeout(frT);frT=setTimeout(pvFr,350)});
+['#fn','#fu'].forEach(s=>$(s).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#frsave').click()}}));
+$('#frsave').onclick=()=>{const n=$('#fn').value.trim(),u=$('#fu').value.trim(),er=$('#fre');
+ if(!n){er.textContent='Nhập tên khung.';$('#fn').focus();return}
+ if(!/^https:\/\//.test(u)){er.textContent='Link phải bắt đầu bằng https://';$('#fu').focus();return}
+ if(editFr){const f=FRM.find(z=>z.id===editFr);f.name=n;f.url=u}
+ else{if(FRM.length>=20){er.textContent='Tối đa 20 khung. Hãy xoá bớt khung cũ.';return}const id='f'+Date.now().toString(36);FRM.push({id,name:n,url:u});DEC='c:'+id}
+ $('#fradd').close();editFr=null;drawFrames();prev();poke()};
 $('#fs').addEventListener('input',drawFrames);
 
 /* links */
