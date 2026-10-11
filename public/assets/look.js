@@ -1,4 +1,4 @@
-window.LOOK_V = 16;
+window.LOOK_V = 17;
 // Giao diện dùng chung cho bio và dash: màu, hình nền (cố định/ngẫu nhiên/trình chiếu + hiệu ứng chuyển),
 // thẻ hồ sơ (khung avatar), hiệu ứng hạt, danh sách nền tảng mạng xã hội.
 (function () {
@@ -308,4 +308,51 @@ window.LOOK_V = 16;
   };
   // đổi giao diện điện thoại <-> máy tính (xoay màn hình, đổi cỡ cửa sổ, ép tay trong dash): áp lại hình nền đúng thiết bị
   new MutationObserver(function () { if (lastLook) window.applyLook(lastLook[0], lastLook[1], lastLook[2]); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-ui'] });
+})();
+
+// ---------- chế độ tab (v17): dùng chung cho bio và dash ----------
+(function () {
+  // [mã, tên hiển thị, mô tả ngắn]
+  window.TAB_MODES = [
+    ['social', 'Social', 'Link mạng xã hội, có biểu tượng nền tảng'],
+    ['link', 'Link', 'Link chia sẻ: tên, mô tả ngắn, bấm là mở'],
+    ['media', 'Ảnh & video', 'Thư viện ảnh hoặc video, bấm để xem lớn'],
+    ['script', 'Script', 'Danh sách script Roblox'],
+    ['note', 'Ghi chú', 'Một đoạn văn bản (giới thiệu, thông báo, luật...)'],
+    ['custom', 'Khác (tuỳ chọn)', 'Tự bật tắt từng chức năng cho tab này']
+  ];
+  // chức năng bật tắt được trong chế độ "Khác", theo thứ tự hiện trên bio
+  window.TAB_FEATS = [
+    ['note', 'Ghi chú', 'Đoạn văn bản tự viết'],
+    ['social', 'Link mạng xã hội', 'Có biểu tượng nền tảng'],
+    ['link', 'Link chia sẻ', 'Có mô tả ngắn'],
+    ['media', 'Ảnh & video', 'Thư viện, bấm để xem lớn'],
+    ['script', 'Script', 'Card script, popup chi tiết']
+  ];
+  window.LINK_FEATS = ['social', 'link', 'media'];
+  window.tabModeName = function (k) { var m = window.TAB_MODES.filter(function (x) { return x[0] === k; })[0]; return m ? m[1] : k; };
+  window.tabOpts = function (t) {
+    var o = {}; try { o = typeof t.opts === 'string' ? JSON.parse(t.opts || '{}') : (t.opts || {}); } catch (e) { o = {}; }
+    var f = {}; window.TAB_FEATS.forEach(function (x) { if (o.f && o.f[x[0]]) f[x[0]] = true; });
+    return { f: f, tools: o.tools !== false };
+  };
+  // danh sách chức năng một tab đang có
+  window.tabFeats = function (t) {
+    if (t.kind !== 'custom') return [t.kind];
+    var o = window.tabOpts(t); return window.TAB_FEATS.map(function (x) { return x[0]; }).filter(function (k) { return o.f[k]; });
+  };
+  // tab chứa chức năng feat: theo id; không có thì tab thường đầu tiên (rồi tới tab "Khác")
+  window.pickTab = function (tabs, feat, id) {
+    var ok = tabs.filter(function (t) { return window.tabFeats(t).indexOf(feat) >= 0; });
+    return ok.filter(function (t) { return t.id === id; })[0] || ok.filter(function (t) { return t.kind !== 'custom'; })[0] || ok[0] || null;
+  };
+  // link nằm ở tab nào và hiện theo kiểu nào (social, link, media)
+  window.linkPlace = function (tabs, l) {
+    var LF = window.LINK_FEATS, isL = function (k) { return LF.indexOf(k) >= 0; };
+    var own = tabs.filter(function (t) { return t.id === l.tab_id && window.tabFeats(t).some(isL); })[0];
+    if (own) { var fs = window.tabFeats(own).filter(isL); return { tab: own, mode: fs.indexOf(l.mode) >= 0 ? l.mode : fs[0] }; }
+    var t = window.pickTab(tabs, 'social', 0) || LF.map(function (k) { return window.pickTab(tabs, k, 0); }).filter(Boolean)[0];
+    if (!t) return { tab: null, mode: '' };
+    var f = window.tabFeats(t); return { tab: t, mode: f.indexOf('social') >= 0 ? 'social' : f.filter(isL)[0] };
+  };
 })();
