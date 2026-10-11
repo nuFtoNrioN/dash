@@ -11,8 +11,8 @@
 <title>noir dash</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap">
-<link rel="stylesheet" href="/assets/style.css?v=13">
-<script src="/assets/look.js?v=13"></script>
+<link rel="stylesheet" href="/assets/style.css?v=14">
+<script src="/assets/look.js?v=14"></script>
 </head>
 <body>
 <section id="gate" class="gate" hidden>
@@ -118,23 +118,32 @@
       <div class="head"><h1>Cài đặt</h1><button class="btn pri save" id="sset">Lưu cài đặt</button></div>
       <h2 style="margin-top:0">Màu chủ đạo</h2>
       <div class="swrow"><span id="swatches" style="display:contents"></span><input type="color" id="ac" aria-label="Chọn màu tuỳ ý"></div>
-      <h2>Hình nền</h2>
-      <label style="margin-top:0">Chế độ</label>
-      <div class="seg" id="md"><label><input type="radio" name="md" value="fixed"><span>Cố định</span></label><label><input type="radio" name="md" value="random"><span>Ngẫu nhiên mỗi lần vào</span></label><label><input type="radio" name="md" value="slide"><span>Trình chiếu</span></label></div>
-      <div id="ivw" hidden><label>Hiệu ứng chuyển ảnh</label><div class="seg" id="tr"><label><input type="radio" name="tr" value="fade"><span>Mờ dần</span></label><label><input type="radio" name="tr" value="slide"><span>Trượt</span></label><label><input type="radio" name="tr" value="zoom"><span>Phóng to</span></label><label><input type="radio" name="tr" value="ink"><span>Loang mực</span></label><label><input type="radio" name="tr" value="random"><span>Ngẫu nhiên</span></label></div><label for="iv">Đổi ảnh sau mỗi</label><select id="iv"><option value="10">10 giây</option><option value="30">30 giây</option><option value="60">1 phút</option><option value="300">5 phút</option></select></div>
-      <p class="hint">Ngẫu nhiên và trình chiếu dùng toàn bộ hình trong danh sách. Trình chiếu bắt đầu từ hình đang chọn. Muốn tắt hẳn nền thì chọn Cố định rồi chọn "Không dùng hình nền".</p>
-      <div class="rows" id="bglist" style="margin-top:8px"></div>
+      <p class="hint">Màu chủ đạo áp dụng cho cả hai trang.</p>
+      <h2>Thư viện hình nền</h2>
+      <p class="hint" style="margin:0 0 8px">Hình thêm ở đây dùng chung. Mục "Đặt hình nền" bên dưới cho chọn hình, chế độ và hiệu ứng riêng cho từng trang và từng thiết bị.</p>
+      <div class="rows" id="bglist"></div>
       <div class="bgform"><input id="bn" placeholder="Tên hình nền" maxlength="40" aria-label="Tên hình nền"><input id="bu" placeholder="https://link-anh-hoac-video.mp4" inputmode="url" aria-label="Link ảnh"><button class="btn" id="bsave" type="button">Thêm hình nền</button><button class="btn" id="bcancel" type="button" hidden>Huỷ</button></div>
-      <p class="hint">Hình nền mới thêm sẽ được chọn ngay. Chỉ nhận link bắt đầu bằng https. Hỗ trợ cả video .mp4 hoặc .webm (nên dưới 10 MB, dài 10 đến 15 giây, tự lặp lại). Khi bật chế độ tiết kiệm dữ liệu hoặc giảm chuyển động, video chỉ hiện khung hình đầu.</p>
-      <h2>Hiệu ứng</h2>
-      <label for="rb" style="margin-top:0">Độ mờ của ảnh nền <b id="vb"></b></label><input type="range" id="rb" min="0" max="24">
-      <label for="rd">Độ tối phủ lên ảnh <b id="vd"></b></label><input type="range" id="rd" min="0" max="90">
-      <label>Chuyển động</label>
-      <div class="seg" id="an"><label><input type="radio" name="an" value="none"><span>Tĩnh</span></label><label><input type="radio" name="an" value="zoom"><span>Zoom chậm</span></label></div>
-      <label class="sw"><input type="checkbox" id="gl">Thẻ kính mờ (hợp với ảnh nền)</label>
-      <label>Áp dụng hình nền cho</label>
-      <div class="seg" id="ap"><label><input type="radio" name="ap" value="both"><span>Cả hai trang</span></label><label><input type="radio" name="ap" value="bio"><span>Chỉ trang bio</span></label><label><input type="radio" name="ap" value="dash"><span>Chỉ dashboard</span></label></div>
-      <p class="hint">Màu chủ đạo luôn áp dụng cho cả hai trang.</p>
+      <p class="hint">Chỉ nhận link bắt đầu bằng https. Hỗ trợ cả video .mp4 hoặc .webm (nên dưới 10 MB, dài 10 đến 15 giây, tự lặp lại). Khi bật chế độ tiết kiệm dữ liệu hoặc giảm chuyển động, video chỉ hiện khung hình đầu.</p>
+      <h2>Đặt hình nền</h2>
+      <label style="margin-top:0">Trang</label>
+      <div class="seg" id="bp"><label><input type="radio" name="bp" value="bio"><span>Trang bio</span></label><label><input type="radio" name="bp" value="dash"><span>Dashboard</span></label></div>
+      <label>Thiết bị</label>
+      <div class="seg" id="bd"><label><input type="radio" name="bd" value="pc"><span>Máy tính</span></label><label><input type="radio" name="bd" value="mobile"><span>Điện thoại</span></label></div>
+      <label class="sw" id="samew" hidden><input type="checkbox" id="same">Điện thoại dùng giống máy tính</label>
+      <p class="hint" id="samenote" hidden>Đang dùng chung với bản máy tính. Tắt công tắc ở trên để đặt riêng cho điện thoại.</p>
+      <div id="bgcfg">
+        <label>Chế độ</label>
+        <div class="seg" id="md"><label><input type="radio" name="md" value="off"><span>Tắt</span></label><label><input type="radio" name="md" value="fixed"><span>Cố định</span></label><label><input type="radio" name="md" value="random"><span>Ngẫu nhiên mỗi lần vào</span></label><label><input type="radio" name="md" value="slide"><span>Trình chiếu</span></label></div>
+        <div id="actw" hidden><label for="bact">Hình nền</label><select id="bact"></select></div>
+        <div id="ivw" hidden><label>Hiệu ứng chuyển ảnh</label><div class="seg" id="tr"><label><input type="radio" name="tr" value="fade"><span>Mờ dần</span></label><label><input type="radio" name="tr" value="slide"><span>Trượt</span></label><label><input type="radio" name="tr" value="zoom"><span>Phóng to</span></label><label><input type="radio" name="tr" value="ink"><span>Loang mực</span></label><label><input type="radio" name="tr" value="random"><span>Ngẫu nhiên</span></label></div><label for="iv">Đổi ảnh sau mỗi</label><select id="iv"><option value="10">10 giây</option><option value="30">30 giây</option><option value="60">1 phút</option><option value="300">5 phút</option></select></div>
+        <p class="hint">Ngẫu nhiên và trình chiếu dùng toàn bộ hình trong thư viện. Trình chiếu bắt đầu từ hình đang chọn. Nền bạn đang thấy trên màn hình này là bản xem trước của mục đang chỉnh.</p>
+        <h2>Hiệu ứng</h2>
+        <label for="rb" style="margin-top:0">Độ mờ của ảnh nền <b id="vb"></b></label><input type="range" id="rb" min="0" max="24">
+        <label for="rd">Độ tối phủ lên ảnh <b id="vd"></b></label><input type="range" id="rd" min="0" max="90">
+        <label>Chuyển động</label>
+        <div class="seg" id="an"><label><input type="radio" name="an" value="none"><span>Tĩnh</span></label><label><input type="radio" name="an" value="zoom"><span>Zoom chậm</span></label></div>
+        <label class="sw"><input type="checkbox" id="gl">Thẻ kính mờ (hợp với ảnh nền)</label>
+      </div>
       <h2>Giao diện dashboard (riêng cho thiết bị này)</h2>
       <div class="seg" id="um"><label><input type="radio" name="um" value="auto"><span>Tự động</span></label><label><input type="radio" name="um" value="desktop"><span>Máy tính</span></label><label><input type="radio" name="um" value="mobile"><span>Điện thoại</span></label></div>
       <p class="hint">Tự động chọn theo độ rộng màn hình. Đổi tay nếu giao diện bị lệch.</p>
@@ -188,6 +197,6 @@
 <dialog id="dlg"><form method="dialog"><p id="dmsg"></p><div class="ac"><button class="btn" type="submit" value="no">Huỷ</button><button class="btn bad" type="submit" value="yes">Xoá</button></div></form></dialog>
 <div id="toast" class="toast" hidden></div>
 
-<script src="/assets/app.js?v=13"></script>
+<script src="/assets/app.js?v=14"></script>
 </body>
 </html>
