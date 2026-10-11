@@ -11,8 +11,8 @@
 <title>noir dash</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap">
-<link rel="stylesheet" href="/assets/style.css?v=12">
-<script src="/assets/look.js?v=12"></script>
+<link rel="stylesheet" href="/assets/style.css?v=13">
+<script src="/assets/look.js?v=13"></script>
 </head>
 <body>
 <section id="gate" class="gate" hidden>
@@ -163,11 +163,16 @@
           <label for="sg">Game</label><input id="sg" maxlength="80">
           <div class="row2"><div><label for="sver">Phiên bản</label><input id="sver" maxlength="20" placeholder="v1.0"></div><div></div></div>
           <label for="scl">Ghi chú phiên bản (có gì mới)</label><textarea id="scl" maxlength="300" style="min-height:64px"></textarea>
+          <p class="hint">Đổi số phiên bản thì ghi thêm một mục vào lịch sử. Giữ nguyên số phiên bản thì chỉ sửa ghi chú của mục hiện tại, không ghi thêm (dùng để sửa lỗi gõ).</p>
+          <div class="rows" id="vlog"></div>
           <label for="sm">Link ảnh game (https)</label><input id="sm" placeholder="https://" inputmode="url">
           <label for="sb">Tab</label><select id="sb"></select>
           <label>Trạng thái</label>
           <div class="seg" id="sst"><label><input type="radio" name="s" value="working"><span><i class="dot ok"></i>Đang chạy</span></label><label><input type="radio" name="s" value="patched"><span><i class="dot bad"></i>Đã patch</span></label><label><input type="radio" name="s" value="outdated"><span><i class="dot warn"></i>Cũ</span></label></div>
-          <label for="sd">Mô tả</label><textarea id="sd" maxlength="500"></textarea>
+          <label for="sd">Mô tả (hiện trong popup)</label><textarea id="sd" maxlength="500"></textarea>
+          <label for="sft">Tính năng (mỗi dòng một ý)</label><textarea id="sft" maxlength="600" style="min-height:84px"></textarea>
+          <label for="shw">Hướng dẫn sử dụng</label><textarea id="shw" maxlength="600" style="min-height:84px"></textarea>
+          <label for="sex">Hỗ trợ executor</label><input id="sex" maxlength="100" placeholder="Ví dụ: Delta, Arceus X, Fluxus">
           <label for="sc">Code</label><textarea id="sc" class="code" spellcheck="false"></textarea>
           <label class="sw"><input type="checkbox" id="sp2">Công khai trên trang bio</label>
           <div id="cm" hidden><label>Lệnh để người dùng chạy</label><div class="cmd"><code id="cmt"></code><button class="btn sm" id="cc">Copy</button></div></div>
@@ -183,6 +188,6 @@
 <dialog id="dlg"><form method="dialog"><p id="dmsg"></p><div class="ac"><button class="btn" type="submit" value="no">Huỷ</button><button class="btn bad" type="submit" value="yes">Xoá</button></div></form></dialog>
 <div id="toast" class="toast" hidden></div>
 
-<script src="/assets/app.js?v=12"></script>
+<script src="/assets/app.js?v=13"></script>
 </body>
 </html>
