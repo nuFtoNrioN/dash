@@ -1,5 +1,5 @@
 // Kiểm tra các file giao diện có cùng một bản không (tránh chép thiếu file)
-(function(){const c=getComputedStyle(document.documentElement).getPropertyValue('--ver').trim();if(c!=='15'||window.LOOK_V!==15){const b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99;padding:10px 14px;background:#f0b429;color:#14121c;font:14px system-ui';b.textContent='Các file giao diện chưa được cập nhật đồng bộ (index.html, style.css, app.js, look.js phải cùng bản 15). Hãy chép đủ rồi tải lại trang.';document.body.append(b)}})();
+(function(){const c=getComputedStyle(document.documentElement).getPropertyValue('--ver').trim();if(c!=='16'||window.LOOK_V!==16){const b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99;padding:10px 14px;background:#f0b429;color:#14121c;font:14px system-ui';b.textContent='Các file giao diện chưa được cập nhật đồng bộ (index.html, style.css, app.js, look.js phải cùng bản 16). Hãy chép đủ rồi tải lại trang.';document.body.append(b)}})();
 const $=(s)=>document.querySelector(s),$$=(s)=>[...document.querySelectorAll(s)];
 const h=(t,p={},...k)=>{const e=document.createElement(t);for(const[a,v]of Object.entries(p)){if(a==='class')e.className=v;else if(a==='text')e.textContent=v;else if(a.startsWith('on'))e.addEventListener(a.slice(2),v);else e.setAttribute(a,v)}e.append(...k);return e};
 const ST={working:['Đang chạy','ok'],patched:['Đã patch','bad'],outdated:['Cũ','warn']};
@@ -92,7 +92,11 @@ mkSeg($('#frs'),'fr',PF_FRAMES);mkSeg($('#fxs'),'fx',PF_FX);
 const pick=(box)=>($('#'+box+' input:checked')||{}).value;
 function readPR(){return{name:$('#pn').value,tagline:$('#pt').value,pronouns:$('#pp').value,location:$('#pl').value,status:$('#ps').value,bio:$('#pb').value,avatar_url:$('#pa').value.trim(),banner_url:$('#pr').value.trim(),frame:pick('frs')||'none',frame_color:$('#fa').checked?'':$('#fc').value,deco:DEC,frames:FRM.map(f=>({...f})),frame_scale:+$('#fs').value,effect:pick('fxs')||'none',badges:[...BD]}}
 const pv=()=>JSON.stringify(readPR());
-function prev(){$('#pvbox').replaceChildren(h('div',{class:'pvwrap'},buildProfile(readPR())))}
+/* v16: số liệu 7 ngày và nút mở trang bio, nằm dưới thẻ xem trước */
+function pvx(){const d7=days.slice(-7),sm=(k)=>d7.reduce((t,d)=>t+(((by[k]||{})[d])||0),0);
+  const o=h('div',{class:'pvx'},h('div',{class:'pvx-h',text:'7 ngày qua'}),h('div',{class:'pvx-g'},...[['Lượt xem',sm('view')],['Khách',sm('uv')],['Lượt copy',sm('copy')]].map(([k,v])=>h('div',{},h('b',{text:v.toLocaleString('vi-VN')}),h('span',{text:k})))));
+  if(BIO)o.append(h('a',{class:'btn pvx-a',href:BIO,target:'_blank',rel:'noopener noreferrer',text:'Mở trang bio'}));return o}
+function prev(){$('#pvbox').replaceChildren(h('div',{class:'pvwrap'},buildProfile(readPR())),pvx())}
 function drawBd(){$('#bdl').replaceChildren(...BD.map((t,i)=>h('span',{class:'chip'},t,h('button',{type:'button','aria-label':'Xoá huy hiệu',text:'✕',onclick:()=>{BD.splice(i,1);drawBd();prev();poke()}}))))}
 function fillProfile(){const p=S.profile||{};$('#pn').value=p.name||'';$('#pt').value=p.tagline||'';$('#pp').value=p.pronouns||'';$('#pl').value=p.location||'';$('#ps').value=p.status||'';$('#pb').value=p.bio||'';$('#pa').value=p.avatar_url||'';$('#pr').value=p.banner_url||'';DEC=p.deco||'none';FRM=(p.frames||[]).map(f=>({...f}));$('#fs').value=p.frame_scale||130;drawFrames();
  $$('#frs input').forEach(i=>i.checked=i.value===(p.frame||'none'));$$('#fxs input').forEach(i=>i.checked=i.value===(p.effect||'none'));$('#fa').checked=!p.frame_color;$('#fc').value=p.frame_color||'#9370ff';BD=[...(p.badges||[])];drawBd();prev();track(pv)}
@@ -155,13 +159,26 @@ $('#sl').onclick=()=>run(async()=>{const links=$$('.lr').map(r=>r._g());await ap
 /* scripts */
 let REORD=false;
 function moveScr(i,dir){const a=S.scripts,j=i+dir;if(j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];run(async()=>{await api('/scripts-order','PUT',{ids:a.map(s=>s.id)});await load();slist()})}
-function slist(){if(REORD){$('#slist').replaceChildren(...S.scripts.map((s,i)=>h('div',{},h('div',{class:'t'},h('i',{text:s.title})),h('div',{class:'n'},h('button',{class:'btn sm',type:'button','aria-label':'Lên',text:'↑',disabled:i===0,onclick:()=>moveScr(i,-1)}),' ',h('button',{class:'btn sm',type:'button','aria-label':'Xuống',text:'↓',disabled:i===S.scripts.length-1,onclick:()=>moveScr(i,1)})))));return}
-const q=$('#q').value.trim().toLowerCase(),b=$('#slist');const a=S.scripts.filter(s=>!q||(s.title+s.id).toLowerCase().includes(q));
- if(!S.scripts.length){b.replaceChildren(h('div',{class:'empty'},'Chưa có script nào.',h('br'),h('button',{class:'btn pri',text:'Tạo script đầu tiên',onclick:()=>location.hash='#/scripts/new'})));return}
- if(!a.length){b.replaceChildren(h('div',{class:'empty',text:'Không có script khớp.'}));return}
- b.replaceChildren(...a.map(s=>h('button',{class:s.id===editId?'on':'',onclick:()=>location.hash='#/scripts/'+s.id},
-  h('div',{class:'t'},h('i',{class:'dot '+(ST[s.status]||ST.working)[1]}),h('i',{text:s.title}),s.published?'':h('span',{class:'tag',text:'Nháp'})),
-  h('div',{class:'m',text:s.id}),h('div',{class:'n',text:s.runs+' chạy, '+s.copies+' copy'}))))}
+/* v16: thanh số liệu và card script (ảnh game, trạng thái, phiên bản, ngày cập nhật, lượt chạy/copy, nút Copy raw) */
+function scStrip(){const L=S.scripts,sum=(k)=>L.reduce((t,x)=>t+(Number(x[k])||0),0),ok=L.filter(x=>x.status==='working').length,box=$('#sstrip');
+  box.hidden=REORD;box.replaceChildren(...(L.length?[h('div',{class:'strip s4'},...[['Script',L.length],['Đang chạy tốt',ok],['Tổng lượt chạy',sum('runs')],['Tổng lượt copy',sum('copies')]].map(([k,v])=>h('div',{},h('span',{text:k}),h('b',{text:v.toLocaleString('vi-VN')}))))]:[]))}
+function copyRaw(s){navigator.clipboard.writeText(RAW+'/'+s.id).then(()=>toast('Đã copy link raw'),()=>toast('Trình duyệt chặn copy, hãy chọn và copy thủ công',true))}
+function scCard(s){const on=s.id===editId,st=ST[s.status]||ST.working,img=/^https:\/\//.test(s.image_url||'')?s.image_url:'';
+  let th=h('span',{text:'</>'});if(img){th=h('img',{alt:'',loading:'lazy',src:img});th.onerror=()=>th.replaceWith(h('span',{text:'</>'}))}
+  const c=h('div',{class:'sc-card'+(on?' on':''),tabindex:'0',role:'button','aria-label':'Sửa '+s.title},
+    h('div',{class:'sc-th'},th),
+    h('div',{class:'sc-bd'},
+      h('div',{class:'sc-t'},h('i',{class:'dot '+st[1]}),h('b',{text:s.title}),s.published?'':h('span',{class:'tag',text:'Nháp'})),
+      h('div',{class:'sc-m',text:[s.game,s.id].filter(Boolean).join(' · ')}),
+      h('div',{class:'sc-f'},h('span',{text:st[0]}),s.version?h('span',{text:s.version}):'',s.updated_at?h('span',{text:'Cập nhật '+new Date(s.updated_at).toLocaleDateString('vi-VN')}):'',h('span',{text:s.runs+' chạy'}),h('span',{text:s.copies+' copy'}))),
+    RAW?h('div',{class:'sc-ac'},h('button',{class:'btn sm',type:'button',text:'Copy raw',onclick:(e)=>{e.stopPropagation();copyRaw(s)}})):'');
+  const go=()=>{location.hash='#/scripts/'+s.id};c.onclick=go;c.onkeydown=(e)=>{if((e.key==='Enter'||e.key===' ')&&e.target===c){e.preventDefault();go()}};return c}
+function slist(){const b=$('#slist');scStrip();
+  if(REORD){b.className='rows';b.replaceChildren(...S.scripts.map((s,i)=>h('div',{},h('div',{class:'t'},h('i',{text:s.title})),h('div',{class:'n'},h('button',{class:'btn sm',type:'button','aria-label':'Lên',text:'↑',disabled:i===0,onclick:()=>moveScr(i,-1)}),' ',h('button',{class:'btn sm',type:'button','aria-label':'Xuống',text:'↓',disabled:i===S.scripts.length-1,onclick:()=>moveScr(i,1)})))));return}
+  b.className='scl';const q=$('#q').value.trim().toLowerCase(),a=S.scripts.filter(s=>!q||(s.title+s.id).toLowerCase().includes(q));
+  if(!S.scripts.length){b.className='';b.replaceChildren(h('div',{class:'empty sc-empty'},'Chưa có script nào.',h('br'),h('span',{class:'hint',text:'Script công khai sẽ hiện ở tab Script của trang bio.'}),h('br'),h('button',{class:'btn pri',text:'Tạo script đầu tiên',onclick:()=>location.hash='#/scripts/new'})));return}
+  if(!a.length){b.className='';b.replaceChildren(h('div',{class:'empty',text:'Không có script khớp.'}));return}
+  b.replaceChildren(...a.map(scCard))}
 $('#q').addEventListener('input',slist);
 const sv=()=>JSON.stringify([$('#si').value,$('#st').value,$('#sg').value,($('#sst input:checked')||{}).value,$('#sd').value,$('#sc').value,$('#sp2').checked,$('#sm').value,$('#sb').value,$('#sver').value,$('#scl').value,$('#sft').value,$('#shw').value,$('#sex').value]);
 async function loadVlog(s){const b=$('#vlog');b.replaceChildren();if(!s)return;
