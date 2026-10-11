@@ -307,14 +307,28 @@ async function admin(request, env, url) {
       const bgs = (Array.isArray(b.backgrounds) ? b.backgrounds : []).slice(0, 20)
         .map((x) => ({ id: str(x.id, 16).replace(/[^a-z0-9]/gi, ''), name: str(x.name, 40), url: httpsUrl(str(x.url, 500)) }))
         .filter((x) => x.id && x.name && x.url);
-      const g = b.bg || {};
       const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, Math.round(Number(v) || 0)));
+      // một cấu hình hình nền: active, mode (off|fixed|random|slide), interval, trans, blur, dim, anim, glass
+      const cfg = (c) => {
+        c = c || {};
+        return { active: bgs.some((x) => x.id === c.active) ? c.active : '', mode: ['fixed', 'random', 'slide'].includes(c.mode) ? c.mode : 'off',
+                 interval: clamp(c.interval || 30, 5, 300), trans: ['slide', 'zoom', 'ink', 'random'].includes(c.trans) ? c.trans : 'fade',
+                 blur: clamp(c.blur, 0, 24), dim: clamp(c.dim, 0, 90), anim: c.anim === 'zoom' ? 'zoom' : 'none', glass: !!c.glass };
+      };
+      const slot = (x) => { x = x || {}; const mb = x.mobile || {}; return { pc: cfg(x.pc), mobile: { ...cfg(mb), same: mb.same !== false } }; };
+      let src = b.bgs;
+      if (!src) { // file dash cũ (trước v14) gửi dạng một cấu hình bg + apply: đổi sang dạng mới để không mất hình nền
+        const g = b.bg || {}, ap = ['bio', 'dash'].includes(g.apply) ? g.apply : 'both';
+        const old = { ...g, mode: g.mode || (g.active ? 'fixed' : 'off') };
+        src = { bio: { pc: ap === 'dash' ? {} : old }, dash: { pc: ap === 'bio' ? {} : old } };
+      }
       const data = {
         theme: { accent }, backgrounds: bgs, layout: { links: b.layout && b.layout.links === 'grid' ? 'grid' : 'list' },
-        bg: { active: bgs.some((x) => x.id === g.active) ? g.active : '', blur: clamp(g.blur, 0, 24), dim: clamp(g.dim, 0, 90),
-              mode: ['random', 'slide'].includes(g.mode) ? g.mode : 'fixed', interval: clamp(g.interval || 30, 5, 300), trans: ['slide', 'zoom', 'ink', 'random'].includes(g.trans) ? g.trans : 'fade',
-              anim: g.anim === 'zoom' ? 'zoom' : 'none', glass: !!g.glass, apply: ['bio', 'dash'].includes(g.apply) ? g.apply : 'both' },
+        bgs: { bio: slot(src.bio), dash: slot(src.dash) },
       };
+      // giữ thêm khoá cũ `bg` (lấy từ bio, máy tính) để file bio/look.js cũ chưa kịp cập nhật vẫn hiện được nền
+      const L = data.bgs.bio.pc;
+      data.bg = { ...L, mode: L.mode === 'fixed' || L.mode === 'random' || L.mode === 'slide' ? L.mode : 'fixed', active: L.mode === 'off' ? '' : L.active, apply: 'both' };
       await env.DB.prepare('INSERT INTO site_settings (id, data) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data').bind(JSON.stringify(data)).run();
       return json({ ok: true });
     }
