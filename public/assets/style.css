@@ -197,7 +197,7 @@ dialog#bgadd{max-width:440px;width:calc(100% - 24px);padding:0;max-height:calc(1
 .bgp-w{padding:18px}
 .bgp-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
 .bgp-h h3,#bgat{font-size:17px;font-weight:600;margin:0}#bgat{margin-bottom:12px}
-.bgp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.bgp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;position:relative;padding:3px;margin:-3px;overflow-y:auto;overscroll-behavior:contain;max-height:min(var(--gh,9999px),calc(100dvh - 150px))}
 .bgp-card{position:relative;background:var(--s2);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;transition:border-color .15s,box-shadow .15s}
 .bgp-card:hover{border-color:var(--mu)}.bgp-card:focus-visible{outline:2px solid var(--ac2)}
 .bgp-card.on{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac)}
@@ -215,17 +215,17 @@ dialog#bgadd{max-width:440px;width:calc(100% - 24px);padding:0;max-height:calc(1
 .bgp-pv{aspect-ratio:16/9;margin-bottom:6px;border-radius:12px;border:1px dashed var(--line);background:var(--s2);display:grid;place-items:center;color:var(--mu);font-size:14px;overflow:hidden;text-align:center;padding:0 10px}
 .bgp-pv.has{border-style:solid;padding:0}.bgp-pv img,.bgp-pv video{width:100%;height:100%;object-fit:cover;display:block}
 html[data-ui=mobile] .bgp-pick{max-width:none}
-html[data-ui=mobile] .bgp-grid{grid-template-columns:1fr 1fr;gap:10px}
+html[data-ui=mobile] .bgp-grid{gap:8px}
 html[data-ui=mobile] .bgp-w{padding:14px}
-html[data-ui=mobile] .bgp-ops button{width:34px;height:34px}
+html[data-ui=mobile] .bgp-ops button{width:28px;height:28px}
 .bgform{display:grid;grid-template-columns:1fr 1.5fr auto auto;gap:8px;margin-top:12px}
 html[data-ui=mobile] .bgform{grid-template-columns:1fr}
 
 /* chọn khung avatar: dùng chung bộ class bgp- với hình nền */
-dialog#frdlg{max-width:700px;width:calc(100% - 24px);padding:0;max-height:calc(100dvh - 32px)}
+dialog#frdlg{max-width:520px;width:calc(100% - 24px);padding:0;max-height:calc(100dvh - 32px)}
 dialog#fradd{max-width:440px;width:calc(100% - 24px);padding:0;max-height:calc(100dvh - 32px)}
 #frat{font-size:17px;font-weight:600;margin:0 0 12px}
-.bgp-grid.frp{grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px}
+.bgp-grid.frp{gap:10px}
 .frp .bgp-thumb,.frp-t{aspect-ratio:1}
 .frp-t{background:var(--s1)}
 .frp-av{position:absolute;left:50%;top:50%;width:46%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:var(--s2)}
@@ -234,6 +234,5 @@ dialog#fradd{max-width:440px;width:calc(100% - 24px);padding:0;max-height:calc(1
 .frp-pv{aspect-ratio:1;max-width:200px;margin:0 auto 6px}
 .frp-pv .bgp-thumb{width:100%;height:100%;aspect-ratio:auto}
 .frp .bgp-ops button{width:26px;height:26px;font-size:12px}.frp .bgp-ck{width:20px;height:20px;font-size:12px;left:6px;top:6px}
-html[data-ui=mobile] .bgp-grid.frp{grid-template-columns:repeat(3,1fr);gap:8px}
 html[data-ui=mobile] .frp .bgp-ops button{width:28px;height:28px}
 .frp .bgp-name{padding:8px 8px;font-size:13px}
