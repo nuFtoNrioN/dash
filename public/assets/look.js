@@ -1,4 +1,4 @@
-window.LOOK_V = 15;
+window.LOOK_V = 16;
 // Giao diện dùng chung cho bio và dash: màu, hình nền (cố định/ngẫu nhiên/trình chiếu + hiệu ứng chuyển),
 // thẻ hồ sơ (khung avatar), hiệu ứng hạt, danh sách nền tảng mạng xã hội.
 (function () {
