@@ -11,8 +11,8 @@
 <title>noir dash</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap">
-<link rel="stylesheet" href="/assets/style.css?v=17">
-<script src="/assets/look.js?v=17"></script>
+<link rel="stylesheet" href="/assets/style.css?v=18">
+<script src="/assets/look.js?v=18"></script>
 </head>
 <body>
 <section id="gate" class="gate" hidden>
@@ -32,8 +32,6 @@
     <nav class="nav">
       <a href="#/overview" data-r="overview"><svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>Tổng quan</a>
       <a href="#/profile" data-r="profile"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Hồ sơ</a>
-      <a href="#/links" data-r="links"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1"/></svg>Links</a>
-      <a href="#/scripts" data-r="scripts"><svg viewBox="0 0 24 24"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"/></svg>Scripts</a>
       <a href="#/tabs" data-r="tabs"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>Tabs</a>
       <a href="#/settings" data-r="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6l2.1 2.1m0-12.8l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>Cài đặt</a>
       <button class="more" id="more" type="button"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>Thêm</button>
@@ -105,10 +103,12 @@
       </div>
     </section>
 
-    <section class="view" id="v-links" hidden>
-      <div class="head"><h1>Links</h1><button class="btn pri save" id="sl">Lưu links</button></div>
-      <div id="lrows"></div>
-      <button class="btn" id="al" style="margin-top:14px">Thêm link</button>
+    <section class="view" id="v-tab" hidden>
+      <div class="head"><div class="tth"><a class="btn sm" href="#/tabs">← Tabs</a><h1 id="tth"></h1><span class="tag" id="ttag"></span></div><button class="btn pri save" id="tsv" type="button">Lưu</button></div>
+      <div class="tact"><button class="btn sm" id="tmode" type="button">Chế độ</button><button class="btn sm" id="trn" type="button">Đổi tên</button></div>
+      <div id="tnote" hidden><h2 class="tsec">Ghi chú</h2><textarea id="tnb" maxlength="4000" placeholder="Viết gì đó: giới thiệu, thông báo, luật..." aria-label="Nội dung ghi chú"></textarea></div>
+      <div id="tlinks" hidden><h2 class="tsec">Link</h2><div id="lrows"></div><button class="btn" id="al" type="button" style="margin-top:14px">Thêm link</button></div>
+      <div id="tbscr" hidden><div class="tsec-h"><h2 class="tsec">Script</h2><button class="btn pri sm" id="ns2" type="button">Tạo script</button></div><div class="ts-list" id="tsl"></div></div>
     </section>
 
     <section class="view" id="v-settings" hidden>
@@ -148,7 +148,7 @@
 
     <section class="view" id="v-tabs" hidden>
       <div class="head"><h1>Tabs</h1></div>
-      <p class="hint" style="margin:0 0 14px">Mỗi tab có một chế độ: Social, Link, Ảnh &amp; video, Script, Ghi chú, hoặc Khác (tự bật tắt từng chức năng). Cần giữ ít nhất một tab chứa Script và một tab chứa link.</p>
+      <p class="hint" style="margin:0 0 14px">Bấm vào một tab để thêm và sửa nội dung bên trong (link, script, ghi chú). Mỗi tab có một chế độ: Social, Link, Ảnh &amp; video, Script, Ghi chú, hoặc Khác (tự bật tắt từng chức năng). Cần giữ ít nhất một tab chứa Script và một tab chứa link.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input id="tn" maxlength="24" placeholder="Tên tab mới" style="flex:1;min-width:160px" aria-label="Tên tab"><select id="tk" class="tm-k" aria-label="Chế độ tab"></select><button class="btn" id="tkcfg" type="button" hidden>Chức năng</button><button class="btn pri" id="at">Tạo tab</button></div>
       <p class="hint" id="tkh" style="margin:8px 0 0"></p>
       <div class="rows" id="trows" style="margin-top:14px"></div>
@@ -159,7 +159,7 @@
       <div class="split" id="split">
         <div><div id="sstrip"></div><input id="q" placeholder="Tìm theo tên hoặc ID" aria-label="Tìm script"><div class="rows" id="slist" style="margin-top:8px"></div></div>
         <div class="editor" id="ed">
-          <div class="head"><button class="btn sm back" id="bk">Danh sách</button><h1 id="et" style="font-size:18px"></h1><button class="btn pri save" id="ss">Lưu script</button></div>
+          <div class="head"><button class="btn sm back" id="bk">← Quay lại</button><h1 id="et" style="font-size:18px"></h1><button class="btn pri save" id="ss">Lưu script</button></div>
           <label for="si" style="margin-top:0">ID (nằm trong link raw)</label><input id="si" maxlength="40" autocapitalize="off" spellcheck="false">
           <label for="st">Tiêu đề</label><input id="st" maxlength="80">
           <label for="sg">Game</label><input id="sg" maxlength="80">
@@ -185,7 +185,7 @@
   </main>
 </div>
 
-<div id="msheet" class="msheet" hidden><div class="msb"><a href="#/tabs" data-go>Tabs</a><a href="#/settings" data-go>Cài đặt</a><a id="site3" href="#" target="_blank" rel="noopener" data-go>Mở trang bio</a><button id="out2" type="button" data-go>Đăng xuất</button></div></div>
+<div id="msheet" class="msheet" hidden><div class="msb"><a href="#/settings" data-go>Cài đặt</a><a id="site3" href="#" target="_blank" rel="noopener" data-go>Mở trang bio</a><button id="out2" type="button" data-go>Đăng xuất</button></div></div>
 <div id="sbar" class="sbar" hidden><button id="sbtn" class="btn pri" type="button">Lưu thay đổi</button></div>
 <dialog id="dlg"><form method="dialog"><p id="dmsg"></p><div class="ac"><button class="btn" type="submit" value="no">Huỷ</button><button class="btn bad" type="submit" value="yes">Xoá</button></div></form></dialog>
 <dialog id="tmdlg"><form method="dialog" class="tm-w"><h3 id="tmt">Cấu hình tab</h3><label for="tmk">Chế độ</label><select id="tmk"></select><p class="hint" id="tmh"></p><div id="tmfe" hidden><div class="tm-l" id="tml"></div><label class="sw tm-t" id="tmtl"><input type="checkbox" id="tmtools">Hiện ô tìm kiếm và bộ lọc script</label></div><div id="tmbd" hidden><label for="tmb">Nội dung ghi chú</label><textarea id="tmb" maxlength="4000" placeholder="Viết gì đó: giới thiệu, thông báo, luật..."></textarea></div><p class="hint" id="tme" role="alert" style="color:var(--bad);margin:8px 0 0"></p><div class="ac" style="margin-top:14px"><button class="btn" id="tmcancel" value="no">Huỷ</button><button class="btn pri" id="tmok" value="yes">Xác nhận</button></div></form></dialog>
@@ -195,6 +195,6 @@
 <dialog id="fradd"><div class="bgp-w"><h3 id="frat">Thêm khung</h3><div class="bgp-pv frp-pv" id="frpv"></div><label for="fn">Tên khung</label><input id="fn" placeholder="Ví dụ: Khung mèo" maxlength="40" autocomplete="off"><label for="fu">Link ảnh hoặc video khung</label><input id="fu" placeholder="https://..." inputmode="url" autocomplete="off"><p class="hint" id="fre" role="alert" style="color:var(--bad);margin:8px 0 0"></p><p class="hint">Chỉ nhận link bắt đầu bằng https. Dùng ảnh PNG, WebP, GIF nền trong suốt; hoặc video .webm nền trong suốt. Video .mp4 nền đen sẽ tự bỏ phần đen.</p><div class="ac" style="margin-top:14px"><button class="btn" id="frcancel" type="button">Huỷ</button><button class="btn pri" id="frsave" type="button">Xác nhận</button></div></div></dialog>
 <div id="toast" class="toast" hidden></div>
 
-<script src="/assets/app.js?v=17"></script>
+<script src="/assets/app.js?v=18"></script>
 </body>
 </html>
