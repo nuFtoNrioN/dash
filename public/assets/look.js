@@ -337,6 +337,18 @@ window.LOOK_V = 18;
     return { f: f, tools: o.tools !== false };
   };
   // danh sách chức năng một tab đang có
+  // ghi chú nhiều mục (v18.2): tabs.body là JSON {"notes":[{id,title,text,c,u}]} (c = lúc tạo, u = lúc cập nhật, mili giây);
+  // dạng cũ là một đoạn văn bản thường, coi như một ghi chú duy nhất chưa rõ thời gian
+  window.parseNotes = function (body) {
+    var s = String(body || '');
+    if (s.charAt(0) === '{') {
+      try {
+        var o = JSON.parse(s);
+        if (o && Array.isArray(o.notes)) return o.notes.map(function (n) { n = n || {}; return { id: String(n.id || ''), title: String(n.title || ''), text: String(n.text || ''), c: +n.c || 0, u: +n.u || 0 }; });
+      } catch (e) { /* văn bản thường */ }
+    }
+    return s.trim() ? [{ id: 'n0', title: '', text: s, c: 0, u: 0 }] : [];
+  };
   window.tabFeats = function (t) {
     if (t.kind !== 'custom') return [t.kind];
     var o = window.tabOpts(t); return window.TAB_FEATS.map(function (x) { return x[0]; }).filter(function (k) { return o.f[k]; });
