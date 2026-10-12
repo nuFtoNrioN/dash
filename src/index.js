@@ -167,6 +167,44 @@ function logout(request, url) {
 
 // ---------- admin API ----------
 const str = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+
+// ---------- ghi chú nhiều mục (v18.2) ----------
+// tabs.body của tab ghi chú là JSON {"notes":[{id,title,text,c,u}]} (c = lúc tạo, u = lúc cập nhật, mili giây).
+// Dạng cũ là văn bản thường: coi như một ghi chú id "n0" chưa rõ thời gian. Thời gian do SERVER đặt, bỏ qua mọi giá trị client gửi.
+const NOTE_MAX = 50, NOTE_TITLE = 80, NOTE_TEXT = 5000, BODY_MAX = 80000;
+function noteList(body) {
+  const s = typeof body === 'string' ? body : '';
+  if (s.charAt(0) === '{') {
+    try { const o = JSON.parse(s); if (o && Array.isArray(o.notes)) return { isNew: true, list: o.notes.map((n) => ({ id: String((n && n.id) || ''), title: String((n && n.title) || ''), text: String((n && n.text) || ''), c: Number(n && n.c) || 0, u: Number(n && n.u) || 0 })) }; } catch (e) { /* văn bản thường */ }
+  }
+  return { isNew: false, list: s.trim() ? [{ id: 'n0', title: '', text: s, c: 0, u: 0 }] : [] };
+}
+// oldBody: body đang lưu; incoming: chuỗi client gửi (JSON ghi chú hoặc văn bản thường). Trả về chuỗi lưu vào cột body.
+function noteBody(oldBody, incoming, now) {
+  const old = noteList(oldBody), byId = new Map(old.list.map((n) => [n.id, n]));
+  const raw = typeof incoming === 'string' ? incoming : '';
+  let list = null;
+  if (raw.charAt(0) === '{') { try { const o = JSON.parse(raw); if (o && Array.isArray(o.notes)) list = o.notes; } catch (e) { /* văn bản thường */ } }
+  if (!list) {
+    if (old.isNew) return oldBody; // file dash cũ gửi văn bản thường: đừng ghi đè nhiều ghi chú bằng một đoạn văn bản
+    list = raw.trim() ? [{ id: 'n0', title: '', text: raw }] : [];
+  }
+  if (list.length > NOTE_MAX) throw new HttpError(400, 'Tối đa ' + NOTE_MAX + ' ghi chú');
+  const seen = new Set(), out = [];
+  for (const x of list) {
+    const title = str(x && x.title, NOTE_TITLE), text = str(x && x.text, NOTE_TEXT);
+    if (!title && !text) continue;
+    let id = x && typeof x.id === 'string' && /^[a-z0-9]{1,16}$/.test(x.id) && !seen.has(x.id) ? x.id : '';
+    if (!id) { do { id = 'n' + Math.random().toString(36).slice(2, 8); } while (seen.has(id) || byId.has(id)); }
+    seen.add(id);
+    const o = byId.get(id);
+    out.push(o ? { id, title, text, c: o.c, u: o.title === title && o.text === text ? o.u : now } : { id, title, text, c: now, u: now });
+  }
+  if (!out.length) return '';
+  const s = JSON.stringify({ notes: out });
+  if (s.length > BODY_MAX) throw new HttpError(400, 'Ghi chú quá dài, hãy xoá bớt');
+  return s;
+}
 const httpsUrl = (v) => {
   try { const u = new URL(v); return u.protocol === 'https:' ? u.href : null; } catch { return null; }
 };
@@ -262,7 +300,7 @@ async function admin(request, env, url) {
 
     if (path === '/links' && method === 'PUT') {
       const b = await readJson(request);
-      if (!Array.isArray(b.links) || b.links.length > 60) throw new HttpError(400, 'Tối đa 60 link');
+      if (!Array.isArray(b.links) || b.links.length > 120) throw new HttpError(400, 'Tối đa 120 link');
       const stmts = [env.DB.prepare('DELETE FROM links')];
       b.links.forEach((x, i) => {
         const label = str(x.label, 40);
@@ -394,7 +432,7 @@ async function admin(request, env, url) {
       b.tabs.forEach((t) => {
         let kind = TAB_KINDS.includes(t.kind) ? t.kind : 'social', opts = '';
         if (kind === 'custom') { try { opts = tabOptsJson('custom', JSON.parse(t.opts || '{}')); } catch (e) { kind = 'social'; } }
-        st.push(env.DB.prepare('INSERT INTO tabs (id, name, kind, sort, opts, body) VALUES (?, ?, ?, ?, ?, ?)').bind(n(t.id), str(t.name, 24) || 'Tab', kind, n(t.sort), opts, str(t.body, 4000)));
+        st.push(env.DB.prepare('INSERT INTO tabs (id, name, kind, sort, opts, body) VALUES (?, ?, ?, ?, ?, ?)').bind(n(t.id), str(t.name, 24) || 'Tab', kind, n(t.sort), opts, str(t.body, BODY_MAX)));
       });
       b.links.forEach((l, i) => {
         const u = httpsUrl(str(l.url, 500)), label = str(l.label, 40);
@@ -443,7 +481,7 @@ async function admin(request, env, url) {
       const kind = TAB_KINDS.includes(b.kind) ? b.kind : 'social';
       const opts = tabOptsJson(kind, b.opts);
       const nx = await env.DB.prepare('SELECT COALESCE(MAX(sort), 0) + 1 AS n FROM tabs').first();
-      await env.DB.prepare('INSERT INTO tabs (name, kind, sort, opts, body) VALUES (?, ?, ?, ?, ?)').bind(name, kind, nx.n, opts, kind === 'note' || kind === 'custom' ? str(b.body, 4000) : '').run();
+      await env.DB.prepare('INSERT INTO tabs (name, kind, sort, opts, body) VALUES (?, ?, ?, ?, ?)').bind(name, kind, nx.n, opts, kind === 'note' || kind === 'custom' ? noteBody('', b.body, Date.now()) : '').run();
       return json({ ok: true });
     }
     const tm = path.match(/^\/tabs\/(\d+)$/);
@@ -456,7 +494,7 @@ async function admin(request, env, url) {
       if (!name) throw new HttpError(400, 'Thiếu tên tab');
       const kind = b.kind === undefined ? cur.kind : (TAB_KINDS.includes(b.kind) ? b.kind : cur.kind);
       const opts = tabOptsJson(kind, b.opts === undefined ? (() => { try { return JSON.parse(cur.opts || '{}'); } catch (e) { return {}; } })() : b.opts);
-      const body = kind === 'note' || kind === 'custom' ? (b.body === undefined ? cur.body : str(b.body, 4000)) : '';
+      const body = kind === 'note' || kind === 'custom' ? (b.body === undefined ? cur.body : noteBody(cur.body, b.body, Date.now())) : '';
       const all = await getTabs(env, 'id');
       checkProviders(all.map((t) => (t.id === id ? { id, kind, opts } : t)));
       await env.DB.prepare('UPDATE tabs SET name = ?, kind = ?, opts = ?, body = ? WHERE id = ?').bind(name, kind, opts, body, id).run();
