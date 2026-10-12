@@ -299,3 +299,36 @@ html[data-ui=mobile] #trows .m{grid-row:auto;margin-top:2px}
 #tnb{min-height:140px}
 html[data-ui=mobile] .tth .btn{flex:none}
 .tth a.btn{text-decoration:none}
+
+/* ===== v18.2 ===== */
+/* nhóm nút thao tác: cùng chiều cao, bo tròn hết; nút mũi tên là nút tròn (không còn lẫn vuông với chữ nhật) */
+.pg{display:flex;align-items:center;gap:6px}
+.pg .btn{border-radius:999px;min-height:34px;height:34px;padding:0 16px;font-size:14px;line-height:1;text-decoration:none;white-space:nowrap}
+.pg .btn[aria-label=Lên],.pg .btn[aria-label=Xuống]{width:34px;padding:0;font-size:16px}
+.pg .btn.bad{border-color:color-mix(in srgb,var(--bad) 45%,var(--line))}
+.pg .btn.pri{border-color:var(--ac)}
+.rows .n.pg{justify-content:flex-end}
+.ts-mv.pg{flex-direction:column;gap:6px}
+.tact .btn,.tth a.btn{border-radius:999px;padding-left:16px;padding-right:16px}
+html[data-ui=mobile] .pg .btn{min-height:40px;height:40px}
+html[data-ui=mobile] .pg .btn[aria-label=Lên],html[data-ui=mobile] .pg .btn[aria-label=Xuống]{width:40px}
+
+/* ảnh & video, ghi chú dạng card trong trang tab (dùng lại bộ class bgp- của hình nền) */
+.mdc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.mdc-grid.mdc-n{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.mdc-grid .bgp-add{display:flex;flex-direction:column}
+.mdc-grid .bgp-add .bgp-thumb{aspect-ratio:auto;flex:1;min-height:80px}
+html[data-ui=mobile] .mdc-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+html[data-ui=mobile] .mdc-grid.mdc-n{grid-template-columns:minmax(0,1fr)}
+.ntc{display:flex;flex-direction:column;min-height:132px}
+.ntc-b{flex:1;min-width:0;padding:12px 14px 8px}
+.ntc-t{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:72px}
+.ntc-x{margin-top:6px;color:var(--mu);font-size:13.5px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line;overflow-wrap:anywhere}
+.ntc-f{display:flex;flex-direction:column;gap:1px;padding:8px 14px 10px;border-top:1px solid var(--line);color:var(--mu);font-size:12px}
+.ntc .bgp-ops{top:8px;right:8px}
+.nt-info{display:flex;flex-direction:column;gap:2px;margin-top:10px;color:var(--mu);font-size:12.5px}
+.bgp-t{font-size:17px;font-weight:600;margin:0 0 12px}
+.bgp-bt{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:14px}
+.bgp-bt>.pg:last-child{margin-left:auto}
+dialog#mdadd,dialog#ntadd{max-width:440px;width:calc(100% - 24px);padding:0;max-height:calc(100dvh - 32px)}
+#ntx{min-height:150px;max-height:50dvh}
