@@ -41,7 +41,26 @@ async function getProfile(env) {
   return { ...ex, name: row.name, bio: row.bio, avatar_url: row.avatar_url };
 }
 
+// v18.3: links.extra là JSON {i: icon, b: banner, c: màu}; trả ra thành icon_url, banner_url, color
+const flatLinks = (rows) => rows.map((r) => {
+  if (!('extra' in r)) return r;
+  const { extra, ...o } = r; let e = {}; try { e = JSON.parse(extra || '{}'); } catch (x) { /* bỏ qua */ }
+  return { ...o, icon_url: e.i || '', banner_url: e.b || '', color: e.c || '' };
+});
+const HEX6 = /^#[0-9a-f]{6}$/i;
+// chuỗi JSON lưu vào links.extra (chỉ link không phải ảnh & video); icon, banner phải là https, màu dạng #rrggbb
+function linkExtra(x) {
+  if (!x || x.mode === 'media') return '';
+  const i = httpsUrl(str(x.icon_url, 500)) || '', b = httpsUrl(str(x.banner_url, 500)) || '', c = typeof x.color === 'string' && HEX6.test(x.color.trim()) ? x.color.trim().toLowerCase() : '';
+  const o = {}; if (i) o.i = i; if (b) o.b = b; if (c) o.c = c;
+  return Object.keys(o).length ? JSON.stringify(o) : '';
+}
+async function hasLinkExtra(env) { // chưa chạy migration 010 thì không có cột extra
+  try { await env.DB.prepare('SELECT extra FROM links LIMIT 1').first(); return true; } catch (e) { return false; }
+}
 async function getLinks(env) {
+  try { return flatLinks((await env.DB.prepare('SELECT label, url, icon, tab_id, note, mode, extra FROM links ORDER BY sort, id').all()).results); }
+  catch (e) { /* chưa chạy migration 010 */ }
   try { return (await env.DB.prepare('SELECT label, url, icon, tab_id, note, mode FROM links ORDER BY sort, id').all()).results; }
   catch (e) { /* chưa chạy migration 009 */ }
   try { return (await env.DB.prepare('SELECT label, url, icon, tab_id, note FROM links ORDER BY sort, id').all()).results; }
@@ -301,15 +320,20 @@ async function admin(request, env, url) {
     if (path === '/links' && method === 'PUT') {
       const b = await readJson(request);
       if (!Array.isArray(b.links) || b.links.length > 120) throw new HttpError(400, 'Tối đa 120 link');
-      const stmts = [env.DB.prepare('DELETE FROM links')];
+      const stmts = [env.DB.prepare('DELETE FROM links')], withX = await hasLinkExtra(env);
+      let wantX = false;
       b.links.forEach((x, i) => {
         const label = str(x.label, 40);
         const u = httpsUrl(str(x.url, 500));
         if (!label || !u) throw new HttpError(400, `Link #${i + 1}: cần tên và URL https hợp lệ`);
-        stmts.push(env.DB.prepare('INSERT INTO links (label, url, icon, sort, tab_id, note, mode) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(label, u, str(x.icon, 24), i, Number.isInteger(x.tab_id) && x.tab_id >= 0 ? x.tab_id : 0, str(x.note, 80), LINK_FEATS.includes(x.mode) ? x.mode : ''));
+        const ex = linkExtra(x); if (ex) wantX = true;
+        const mode = LINK_FEATS.includes(x.mode) ? x.mode : '', tab = Number.isInteger(x.tab_id) && x.tab_id >= 0 ? x.tab_id : 0;
+        stmts.push(withX
+          ? env.DB.prepare('INSERT INTO links (label, url, icon, sort, tab_id, note, mode, extra) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(label, u, str(x.icon, 24), i, tab, str(x.note, 80), mode, ex)
+          : env.DB.prepare('INSERT INTO links (label, url, icon, sort, tab_id, note, mode) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(label, u, str(x.icon, 24), i, tab, str(x.note, 80), mode));
       });
       await env.DB.batch(stmts);
-      return json({ ok: true });
+      return json({ ok: true, extra: withX || !wantX }); // extra = false: chưa chạy migration 010 nên icon, banner, màu chưa được lưu
     }
 
     if (path === '/scripts' && method === 'POST') {
@@ -426,6 +450,7 @@ async function admin(request, env, url) {
       try { b = await request.json(); } catch (e) { throw new HttpError(400, 'File không phải JSON hợp lệ'); }
       if (!b || b.version !== 1 || !Array.isArray(b.scripts) || !Array.isArray(b.links) || !Array.isArray(b.tabs)) throw new HttpError(400, 'Đây không phải file sao lưu của NOIR');
       const n = (v, d = 0) => (Number.isFinite(Number(v)) ? Math.trunc(Number(v)) : d);
+      const withX = await hasLinkExtra(env);
       let hasV = true;
       try { await env.DB.prepare('SELECT 1 FROM script_versions LIMIT 1').first(); } catch (e) { hasV = false; }
       const st = ['links', 'scripts', 'tabs', 'daily_stats'].concat(hasV ? ['script_versions'] : []).map((t) => env.DB.prepare('DELETE FROM ' + t));
@@ -436,7 +461,9 @@ async function admin(request, env, url) {
       });
       b.links.forEach((l, i) => {
         const u = httpsUrl(str(l.url, 500)), label = str(l.label, 40);
-        if (u && label) st.push(env.DB.prepare('INSERT INTO links (label, url, icon, sort, tab_id, note, mode) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(label, u, str(l.icon, 24), i, n(l.tab_id), str(l.note, 80), LINK_FEATS.includes(l.mode) ? l.mode : ''));
+        if (u && label) st.push(withX
+          ? env.DB.prepare('INSERT INTO links (label, url, icon, sort, tab_id, note, mode, extra) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(label, u, str(l.icon, 24), i, n(l.tab_id), str(l.note, 80), LINK_FEATS.includes(l.mode) ? l.mode : '', linkExtra(l))
+          : env.DB.prepare('INSERT INTO links (label, url, icon, sort, tab_id, note, mode) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(label, u, str(l.icon, 24), i, n(l.tab_id), str(l.note, 80), LINK_FEATS.includes(l.mode) ? l.mode : ''));
       });
       b.scripts.forEach((x) => {
         const id = str(x.id, 40), code = typeof x.code === 'string' ? x.code : '';
