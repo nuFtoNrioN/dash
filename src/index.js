@@ -48,6 +48,37 @@ const flatLinks = (rows) => rows.map((r) => {
   return { ...o, icon_url: e.i || '', banner_url: e.b || '', color: e.c || '' };
 });
 const HEX6 = /^#[0-9a-f]{6}$/i;
+// v19: scripts.extra là JSON {g: [ảnh minh họa, tối đa 3], k: {n: mô tả key, u: link lấy key}}; k có mặt nghĩa là script cần key.
+// Trả ra thành images (mảng), has_key, key_note, key_url
+const flatScripts = (rows) => rows.map((r) => {
+  if (!('extra' in r)) return r;
+  const { extra, ...o } = r; let e = {}; try { e = JSON.parse(extra || '{}'); } catch (x) { /* bỏ qua */ }
+  const k = e && typeof e.k === 'object' && e.k ? e.k : null;
+  return { ...o, images: Array.isArray(e.g) ? e.g.filter((u) => /^https:\/\//.test(u)).slice(0, 3) : [], has_key: !!k, key_note: (k && k.n) || '', key_url: (k && k.u) || '' };
+});
+// chuỗi JSON lưu vào scripts.extra ('' nếu không có gì). strict: link sai thì báo lỗi (khi lưu); không strict: bỏ qua (khi khôi phục sao lưu)
+function scriptExtra(images, hasKey, note, link, strict) {
+  const list = Array.isArray(images) ? images : [];
+  if (strict && list.length > 3) throw new HttpError(400, 'Tối đa 3 ảnh minh họa');
+  const g = [];
+  list.slice(0, 3).forEach((x) => {
+    const u = httpsUrl(str(x, 500));
+    if (u) g.push(u); else if (strict) throw new HttpError(400, 'Ảnh minh họa phải là link https');
+  });
+  const o = {};
+  if (g.length) o.g = g;
+  if (hasKey) {
+    const k = {}, n = str(note, 200), l = link ? httpsUrl(str(link, 500)) : '';
+    if (n) k.n = n;
+    if (l) k.u = l; else if (link && strict) throw new HttpError(400, 'Link lấy key phải là link https');
+    o.k = k;
+  }
+  return Object.keys(o).length ? JSON.stringify(o) : '';
+}
+async function hasScriptExtra(env) { // chưa chạy migration 011 thì không có cột extra
+  try { await env.DB.prepare('SELECT extra FROM scripts LIMIT 1').first(); return true; } catch (e) { return false; }
+}
+
 // chuỗi JSON lưu vào links.extra (chỉ link không phải ảnh & video); icon, banner phải là https, màu dạng #rrggbb
 function linkExtra(x) {
   if (!x || x.mode === 'media') return '';
@@ -75,8 +106,8 @@ async function getTabs(env, order, withSort) {
 }
 
 async function adminScripts(env) {
-  try { return (await env.DB.prepare('SELECT * FROM scripts ORDER BY sort, updated_at DESC').all()).results; }
-  catch (e) { return (await env.DB.prepare('SELECT * FROM scripts ORDER BY updated_at DESC').all()).results; }
+  try { return flatScripts((await env.DB.prepare('SELECT * FROM scripts ORDER BY sort, updated_at DESC').all()).results); }
+  catch (e) { return flatScripts((await env.DB.prepare('SELECT * FROM scripts ORDER BY updated_at DESC').all()).results); }
 }
 
 async function getSettings(env) {
@@ -341,11 +372,11 @@ async function admin(request, env, url) {
       const f = scriptFields(b);
       const id = str(b.id, 40);
       if (!ID_RE.test(id)) throw new HttpError(400, 'ID chỉ gồm a-z, 0-9, dấu gạch ngang (2-40 ký tự)');
-      const now = Date.now();
+      const now = Date.now(), withX = await hasScriptExtra(env);
       try {
         await env.DB.prepare(
-          'INSERT INTO scripts (id, title, description, game, image_url, tab_id, status, code, published, created_at, updated_at, version, changelog, features, howto, executors, sort) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT MIN(sort) FROM scripts), 0) - 1)'
-        ).bind(id, f.title, f.description, f.game, f.image_url, f.tab_id, f.status, f.code, f.published, now, now, f.version, f.changelog, f.features, f.howto, f.executors).run();
+          'INSERT INTO scripts (id, title, description, game, image_url, tab_id, status, code, published, created_at, updated_at, version, changelog, features, howto, executors, sort' + (withX ? ', extra' : '') + ') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT MIN(sort) FROM scripts), 0) - 1' + (withX ? ', ?' : '') + ')'
+        ).bind(...[id, f.title, f.description, f.game, f.image_url, f.tab_id, f.status, f.code, f.published, now, now, f.version, f.changelog, f.features, f.howto, f.executors].concat(withX ? [f.extra] : [])).run();
       } catch (e) {
         if (String(e).includes('UNIQUE')) throw new HttpError(409, 'ID này đã tồn tại');
         throw e;
@@ -353,7 +384,7 @@ async function admin(request, env, url) {
       if (f.version) {
         try { await env.DB.prepare('INSERT INTO script_versions (script_id, version, changelog, created_at) VALUES (?, ?, ?, ?)').bind(id, f.version, f.changelog, now).run(); } catch (e) { /* chưa chạy migration 008 */ }
       }
-      return json({ ok: true, id });
+      return json({ ok: true, id, extra: withX || !f.extra }); // extra = false: chưa chạy migration 011 nên ảnh minh họa và key chưa được lưu
     }
 
     const vm = path.match(/^\/scripts\/([a-z0-9-]{2,40})\/versions$/);
@@ -372,10 +403,10 @@ async function admin(request, env, url) {
       const f = scriptFields(await readJson(request));
       const cur = await env.DB.prepare('SELECT version FROM scripts WHERE id = ?').bind(m[1]).first();
       if (!cur) throw new HttpError(404, 'Không tìm thấy script');
-      const now = Date.now();
+      const now = Date.now(), withX = await hasScriptExtra(env);
       await env.DB.prepare(
-        'UPDATE scripts SET title = ?, description = ?, game = ?, image_url = ?, tab_id = ?, status = ?, code = ?, published = ?, updated_at = ?, version = ?, changelog = ?, features = ?, howto = ?, executors = ? WHERE id = ?'
-      ).bind(f.title, f.description, f.game, f.image_url, f.tab_id, f.status, f.code, f.published, now, f.version, f.changelog, f.features, f.howto, f.executors, m[1]).run();
+        'UPDATE scripts SET title = ?, description = ?, game = ?, image_url = ?, tab_id = ?, status = ?, code = ?, published = ?, updated_at = ?, version = ?, changelog = ?, features = ?, howto = ?, executors = ?' + (withX ? ', extra = ?' : '') + ' WHERE id = ?'
+      ).bind(...[f.title, f.description, f.game, f.image_url, f.tab_id, f.status, f.code, f.published, now, f.version, f.changelog, f.features, f.howto, f.executors].concat(withX ? [f.extra] : [], [m[1]])).run();
       if (f.version) {
         try { // đổi số phiên bản thì ghi thêm vào lịch sử; giữ nguyên số phiên bản thì chỉ sửa ghi chú của mục hiện tại
           let done = false;
@@ -386,7 +417,7 @@ async function admin(request, env, url) {
           if (!done) await env.DB.prepare('INSERT INTO script_versions (script_id, version, changelog, created_at) VALUES (?, ?, ?, ?)').bind(m[1], f.version, f.changelog, now).run();
         } catch (e) { /* chưa chạy migration 008 */ }
       }
-      return json({ ok: true });
+      return json({ ok: true, extra: withX || !f.extra });
     }
     if (m && method === 'DELETE') {
       await env.DB.prepare('DELETE FROM scripts WHERE id = ?').bind(m[1]).run();
@@ -450,7 +481,7 @@ async function admin(request, env, url) {
       try { b = await request.json(); } catch (e) { throw new HttpError(400, 'File không phải JSON hợp lệ'); }
       if (!b || b.version !== 1 || !Array.isArray(b.scripts) || !Array.isArray(b.links) || !Array.isArray(b.tabs)) throw new HttpError(400, 'Đây không phải file sao lưu của NOIR');
       const n = (v, d = 0) => (Number.isFinite(Number(v)) ? Math.trunc(Number(v)) : d);
-      const withX = await hasLinkExtra(env);
+      const withX = await hasLinkExtra(env), withSX = await hasScriptExtra(env);
       let hasV = true;
       try { await env.DB.prepare('SELECT 1 FROM script_versions LIMIT 1').first(); } catch (e) { hasV = false; }
       const st = ['links', 'scripts', 'tabs', 'daily_stats'].concat(hasV ? ['script_versions'] : []).map((t) => env.DB.prepare('DELETE FROM ' + t));
@@ -468,9 +499,10 @@ async function admin(request, env, url) {
       b.scripts.forEach((x) => {
         const id = str(x.id, 40), code = typeof x.code === 'string' ? x.code : '';
         if (!ID_RE.test(id) || !str(x.title, 80) || !code || code.length > 200000) return;
-        st.push(env.DB.prepare('INSERT INTO scripts (id, title, description, game, image_url, tab_id, status, code, published, runs, copies, created_at, updated_at, version, changelog, features, howto, executors, sort) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-          .bind(id, str(x.title, 80), str(x.description, 500), str(x.game, 80), x.image_url ? (httpsUrl(str(x.image_url, 500)) || '') : '', n(x.tab_id),
-            STATUSES.includes(x.status) ? x.status : 'working', code, x.published ? 1 : 0, n(x.runs), n(x.copies), n(x.created_at, Date.now()), n(x.updated_at, Date.now()), str(x.version, 20), str(x.changelog, 300), str(x.features, 600), str(x.howto, 600), str(x.executors, 100), n(x.sort)));
+        let ex = ''; try { const e = JSON.parse(x.extra || '{}'), k = e && typeof e.k === 'object' ? e.k : null; ex = scriptExtra(e.g, !!k, k && k.n, k && k.u, false); } catch (e) { /* bỏ qua */ }
+        st.push(env.DB.prepare('INSERT INTO scripts (id, title, description, game, image_url, tab_id, status, code, published, runs, copies, created_at, updated_at, version, changelog, features, howto, executors, sort' + (withSX ? ', extra' : '') + ') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?' + (withSX ? ', ?' : '') + ')')
+          .bind(...[id, str(x.title, 80), str(x.description, 500), str(x.game, 80), x.image_url ? (httpsUrl(str(x.image_url, 500)) || '') : '', n(x.tab_id),
+            STATUSES.includes(x.status) ? x.status : 'working', code, x.published ? 1 : 0, n(x.runs), n(x.copies), n(x.created_at, Date.now()), n(x.updated_at, Date.now()), str(x.version, 20), str(x.changelog, 300), str(x.features, 600), str(x.howto, 600), str(x.executors, 100), n(x.sort)].concat(withSX ? [ex] : [])));
       });
       if (hasV) {
         (Array.isArray(b.versions) ? b.versions : []).forEach((v) => {
@@ -557,5 +589,5 @@ function scriptFields(b) {
   const image_url = b.image_url ? httpsUrl(str(b.image_url, 500)) : '';
   if (image_url === null) throw new HttpError(400, 'Ảnh game phải là link https');
   const tab_id = Number.isInteger(b.tab_id) && b.tab_id >= 0 ? b.tab_id : 0;
-  return { title, code, status, image_url, tab_id, version: str(b.version, 20), changelog: str(b.changelog, 300), features: str(b.features, 600), howto: str(b.howto, 600), executors: str(b.executors, 100), description: str(b.description, 500), game: str(b.game, 80), published: b.published ? 1 : 0 };
+  return { title, code, status, image_url, tab_id, version: str(b.version, 20), changelog: str(b.changelog, 300), features: str(b.features, 600), howto: str(b.howto, 600), executors: str(b.executors, 100), description: str(b.description, 500), game: str(b.game, 80), published: b.published ? 1 : 0, extra: scriptExtra(b.images, !!b.has_key, b.key_note, b.key_url, true) };
 }
