@@ -1,5 +1,5 @@
 // Kiểm tra các file giao diện có cùng một bản không (tránh chép thiếu file)
-(function(){const c=getComputedStyle(document.documentElement).getPropertyValue('--ver').trim();if(c!=='18'||window.LOOK_V!==18){const b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99;padding:10px 14px;background:#f0b429;color:#14121c;font:14px system-ui';b.textContent='Các file giao diện chưa được cập nhật đồng bộ (index.html, style.css, app.js, look.js phải cùng bản 18). Hãy chép đủ rồi tải lại trang.';document.body.append(b)}})();
+(function(){const c=getComputedStyle(document.documentElement).getPropertyValue('--ver').trim();if(c!=='19'||window.LOOK_V!==19){const b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99;padding:10px 14px;background:#f0b429;color:#14121c;font:14px system-ui';b.textContent='Các file giao diện chưa được cập nhật đồng bộ (index.html, style.css, app.js, look.js phải cùng bản 19). Hãy chép đủ rồi tải lại trang.';document.body.append(b)}})();
 const $=(s)=>document.querySelector(s),$$=(s)=>[...document.querySelectorAll(s)];
 const h=(t,p={},...k)=>{const e=document.createElement(t);for(const[a,v]of Object.entries(p)){if(a==='class')e.className=v;else if(a==='text')e.textContent=v;else if(a.startsWith('on'))e.addEventListener(a.slice(2),v);else if(v===false||v==null);else e.setAttribute(a,v===true?'':v)}e.append(...k);return e};
 const ST={working:['Đang chạy','ok'],patched:['Đã patch','bad'],outdated:['Cũ','warn']};
@@ -204,23 +204,40 @@ function slist(){const b=$('#slist');scStrip();
   if(!a.length){b.className='';b.replaceChildren(h('div',{class:'empty',text:'Không có script khớp.'}));return}
   b.replaceChildren(...a.map(scCard))}
 $('#q').addEventListener('input',slist);
-const sv=()=>JSON.stringify([$('#si').value,$('#st').value,$('#sg').value,($('#sst input:checked')||{}).value,$('#sd').value,$('#sc').value,$('#sp2').checked,$('#sm').value,$('#sb').value,$('#sver').value,$('#scl').value,$('#sft').value,$('#shw').value,$('#sex').value]);
+let GI=[];
+const sv=()=>JSON.stringify([$('#si').value,$('#st').value,$('#sg').value,($('#sst input:checked')||{}).value,$('#sd').value,$('#sc').value,$('#sp2').checked,$('#sm').value,$('#sb').value,$('#sver').value,$('#scl').value,$('#sft').value,$('#shw').value,$('#sex').value,GI,$('#sk').checked,$('#skn').value,$('#sku').value]);
 async function loadVlog(s){const b=$('#vlog');b.replaceChildren();if(!s)return;
  try{const list=await api('/scripts/'+s.id+'/versions');b.replaceChildren(...list.map(v=>h('div',{},h('div',{class:'t'},h('i',{text:v.version+'   '+new Date(v.created_at).toLocaleDateString('vi-VN')})),
   h('div',{class:'n'},h('button',{class:'btn sm bad',type:'button',text:'Xoá',onclick:()=>run(async()=>{await api('/versions/'+v.id,'DELETE');loadVlog(s)})})),h('div',{class:'m',text:v.changelog||'Không có ghi chú'}))))}catch{}}
+function drawGi(){const l=$('#sgl'),full=GI.length>=3;
+ l.replaceChildren(...GI.map((u,i)=>h('div',{class:'gi'},h('img',{src:u,alt:'',loading:'lazy'}),h('span',{text:u}),h('button',{class:'btn sm bad',type:'button','aria-label':'Xoá ảnh minh họa '+(i+1),text:'✕',onclick:()=>{GI.splice(i,1);drawGi();poke()}}))));
+ $('#sgn').textContent=GI.length+'/3';$('#sgi').disabled=$('#sga').disabled=full;$('#sgi').placeholder=full?'Đã đủ 3 ảnh':'https://'}
+function addGi(){const v=$('#sgi').value.trim(),e=$('#sge');
+ if(!v)return;if(!/^https:\/\//.test(v)){e.textContent='Link ảnh phải bắt đầu bằng https://';return}
+ if(GI.includes(v)){e.textContent='Ảnh này đã có trong danh sách';return}
+ if(GI.length>=3){e.textContent='Tối đa 3 ảnh minh họa';return}
+ GI.push(v);$('#sgi').value='';e.textContent='';drawGi();poke()}
+$('#sga').onclick=addGi;
+$('#sgi').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addGi()}});
+$('#sgi').addEventListener('input',()=>{$('#sge').textContent=''});
+$('#sk').addEventListener('change',()=>{$('#kbox').hidden=!$('#sk').checked});
+$('#sku').addEventListener('input',()=>{$('#ske').textContent=''});
 function openScript(id){const sp=$('#split');editId=id&&id!=='new'?id:null;
  if(!id){sp.classList.remove('open');slist();return}
  const s=editId?S.scripts.find(x=>x.id===editId):null;if(editId&&!s){location.hash='#/scripts';return}
  $('#si').value=s?s.id:'';$('#si').disabled=!!s;$('#st').value=s?s.title:'';$('#sg').value=s?s.game:'';$('#sm').value=s?s.image_url:'';$('#sver').value=s?s.version||'':'';$('#scl').value=s?s.changelog||'':'';$('#sft').value=s?s.features||'':'';$('#shw').value=s?s.howto||'':'';$('#sex').value=s?s.executors||'':'';loadVlog(s);fillSb(s?s.tab_id:NEWTAB);
  $('#sst input[value='+(s?s.status:'working')+']').checked=true;$('#sd').value=s?s.description:'';$('#sc').value=s?s.code:'';$('#sp2').checked=s?!!s.published:true;
+ GI=s&&Array.isArray(s.images)?s.images.slice():[];$('#sgi').value='';$('#sge').textContent='';drawGi();
+ $('#sk').checked=!!(s&&s.has_key);$('#kbox').hidden=!$('#sk').checked;$('#skn').value=s?s.key_note||'':'';$('#sku').value=s?s.key_url||'':'';$('#ske').textContent='';
  $('#et').textContent=s?s.title:'Script mới';$('#ds').hidden=$('#cm').hidden=!s;if(s)$('#cmt').textContent='loadstring(game:HttpGet("'+RAW+'/'+s.id+'"))()';
  sp.classList.add('open');slist();track(sv)}
 $('#rs').onclick=()=>{REORD=!REORD;$('#rs').textContent=REORD?'Xong':'Sắp xếp';$('#q').hidden=REORD;if(REORD)$('#split').classList.remove('open');slist()};
 $('#ns').onclick=()=>location.hash='#/scripts/new';
 $('#bk').onclick=()=>location.hash=RET||'#/tabs';
-$('#ss').onclick=()=>run(async()=>{const nw=!editId,body={id:$('#si').value.trim(),title:$('#st').value,game:$('#sg').value,status:$('#sst input:checked').value,description:$('#sd').value,code:$('#sc').value,published:$('#sp2').checked,image_url:$('#sm').value,tab_id:Number($('#sb').value),version:$('#sver').value,changelog:$('#scl').value,features:$('#sft').value,howto:$('#shw').value,executors:$('#sex').value};
- if(nw)await api('/scripts','POST',body);else await api('/scripts/'+editId,'PUT',body);
- await load();dirty=false;toast(nw?'Đã tạo script':'Đã lưu script');if(nw)location.hash='#/scripts/'+body.id;else openScript(editId)});
+$('#ss').onclick=()=>run(async()=>{const nw=!editId,body={id:$('#si').value.trim(),title:$('#st').value,game:$('#sg').value,status:$('#sst input:checked').value,description:$('#sd').value,code:$('#sc').value,published:$('#sp2').checked,image_url:$('#sm').value,tab_id:Number($('#sb').value),version:$('#sver').value,changelog:$('#scl').value,features:$('#sft').value,howto:$('#shw').value,executors:$('#sex').value,images:GI,has_key:$('#sk').checked,key_note:$('#skn').value,key_url:$('#sku').value.trim()};
+ if(body.has_key&&body.key_url&&!/^https:\/\//.test(body.key_url)){$('#ske').textContent='Link lấy key phải bắt đầu bằng https://';$('#sku').focus();return}
+ const rs=nw?await api('/scripts','POST',body):await api('/scripts/'+editId,'PUT',body);
+ await load();dirty=false;if(rs&&rs.extra===false)toast('Chưa chạy migration 011 nên ảnh minh họa và key chưa được lưu',true);else toast(nw?'Đã tạo script':'Đã lưu script');if(nw)location.hash='#/scripts/'+body.id;else openScript(editId)});
 $('#ds').onclick=()=>run(async()=>{if(!await ask('Xoá script "'+$('#st').value+'"? Link raw của nó sẽ ngừng hoạt động và không khôi phục được.','Xoá script'))return;
  await api('/scripts/'+editId,'DELETE');await load();dirty=false;toast('Đã xoá script');location.hash=RET||'#/tabs'});
 $('#cc').onclick=async()=>{try{await navigator.clipboard.writeText($('#cmt').textContent);toast('Đã copy lệnh')}catch{toast('Trình duyệt chặn copy, hãy chọn và copy thủ công',true)}};
