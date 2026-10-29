@@ -1,10 +1,10 @@
 // Kiểm tra các file giao diện có cùng một bản không (tránh chép thiếu file)
-(function(){const c=getComputedStyle(document.documentElement).getPropertyValue('--ver').trim();if(c!=='19'||window.LOOK_V!==19){const b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99;padding:10px 14px;background:#f0b429;color:#14121c;font:14px system-ui';b.textContent='Các file giao diện chưa được cập nhật đồng bộ (index.html, style.css, app.js, look.js phải cùng bản 19). Hãy chép đủ rồi tải lại trang.';document.body.append(b)}})();
+(function(){const c=getComputedStyle(document.documentElement).getPropertyValue('--ver').trim();if(c!=='20'||window.LOOK_V!==20){const b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99;padding:10px 14px;background:#f0b429;color:#14121c;font:14px system-ui';b.textContent='Các file giao diện chưa được cập nhật đồng bộ (index.html, style.css, app.js, look.js phải cùng bản 20). Hãy chép đủ rồi tải lại trang.';document.body.append(b)}})();
 const $=(s)=>document.querySelector(s),$$=(s)=>[...document.querySelectorAll(s)];
 const h=(t,p={},...k)=>{const e=document.createElement(t);for(const[a,v]of Object.entries(p)){if(a==='class')e.className=v;else if(a==='text')e.textContent=v;else if(a.startsWith('on'))e.addEventListener(a.slice(2),v);else if(v===false||v==null);else e.setAttribute(a,v===true?'':v)}e.append(...k);return e};
 const ST={working:['Đang chạy','ok'],patched:['Đã patch','bad'],outdated:['Cũ','warn']};
 const TITLES={overview:'Tổng quan',profile:'Hồ sơ',scripts:'Scripts',tabs:'Tabs',settings:'Cài đặt'};
-let S={profile:{},links:[],scripts:[],tabs:[],settings:{},stats:{rows:[],since:''}},BIO='',RAW='',M='view',base='',getter=null,dirty=false,cur='',skip=false,editId=null,days=[],by={};
+let S={profile:{},links:[],scripts:[],tabs:[],sections:[],settings:{},stats:{rows:[],since:''}},BIO='',RAW='',M='view',base='',getter=null,dirty=false,cur='',skip=false,editId=null,days=[],by={};
 
 let tt;function toast(m,bad){const t=$('#toast');t.textContent=m;t.className='toast'+(bad?' bad':'');t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2400)}
 async function api(p,m='GET',b){const r=await fetch('/api/admin'+p,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});let d={};try{d=await r.json()}catch{}if(r.status===401){const e=new Error('401');e.s=401;throw e}if(!r.ok)throw new Error(d.error||'Lỗi '+r.status);return d}
@@ -141,20 +141,47 @@ $('#frsave').onclick=()=>{const n=$('#fn').value.trim(),u=$('#fu').value.trim(),
  $('#fradd').close();editFr=null;drawFrames();prev();poke()};
 $('#fs').addEventListener('input',drawFrames);
 
+/* v20: section trong tab. Tạo, sửa, xoá, đổi thứ tự là gọi API ngay (không đợi bấm Lưu tab); chọn section cho từng mục thì lưu cùng mục đó */
+const secsOf=(tid)=>(S.sections||[]).filter(x=>x.tab_id===tid);
+function secOpts(sel,tid,cur){const L=secsOf(tid);sel.replaceChildren(h('option',{value:'0',text:'Không có section'}),...L.map(x=>h('option',{value:String(x.id),text:x.title})));sel.value=L.some(x=>x.id===cur)?String(cur):'0'}
+function secCount(s){const inTab=(l)=>{const p=linkPlace(S.tabs,l);return p.tab&&p.tab.id===s.tab_id};
+  return S.links.filter(l=>inTab(l)&&secOf(S.sections,s.tab_id,l)===s.id).length+S.scripts.filter(x=>{const p=pickTab(S.tabs,'script',x.tab_id);return p&&p.id===s.tab_id&&secOf(S.sections,s.tab_id,x)===s.id}).length}
+function refreshSecUi(){drawSecs();$$('.lr').forEach(r=>r._sec&&r._sec())}
+function drawSecs(){const L=secsOf(TABID);
+  $('#seclist').replaceChildren(...(L.length?L.map((s,k)=>h('div',{class:'sec-item'},
+    h('div',{class:'sec-row'},h('div',{class:'sec-r1'},h('b',{text:s.title}),s.open?'':h('span',{class:'tag',text:'Đóng sẵn'}),s.search?h('span',{class:'tag',text:'Có tìm kiếm'}):'',h('span',{class:'tag',text:secCount(s)+' mục'})),s.sub?h('small',{text:s.sub}):''),
+    h('div',{class:'sec-ac pg'},h('button',{class:'btn sm',type:'button','aria-label':'Lên',text:'↑',disabled:k===0,onclick:()=>moveSec(s,-1)}),h('button',{class:'btn sm',type:'button','aria-label':'Xuống',text:'↓',disabled:k===L.length-1,onclick:()=>moveSec(s,1)}),h('button',{class:'btn sm',type:'button',text:'Sửa',onclick:()=>openSec(s)}),h('button',{class:'btn sm bad',type:'button',text:'Xoá',onclick:()=>delSec(s)})))):[h('div',{class:'empty',text:'Chưa có section nào.'})]))}
+function moveSec(s,d){const L=secsOf(s.tab_id),o=L[L.indexOf(s)+d];if(!o)return;const a=[...S.sections],i=a.indexOf(s),j=a.indexOf(o);[a[i],a[j]]=[a[j],a[i]];
+  run(async()=>{await api('/sections-order','PUT',{ids:a.map(x=>x.id)});S.sections=a;refreshSecUi()})}
+function delSec(s){run(async()=>{if(!await ask('Xoá section "'+s.title+'"? Card bên trong vẫn giữ nguyên, chỉ không còn thuộc section nào.','Xoá'))return;await api('/sections/'+s.id,'DELETE');S.sections=S.sections.filter(x=>x!==s);refreshSecUi();toast('Đã xoá section')})}
+let SECEDIT=null;
+function openSec(s){SECEDIT=s||null;$('#secat').textContent=s?'Sửa section':'Thêm section';$('#sect').value=s?s.title:'';$('#secs').value=s?s.sub||'':'';$('#seco').checked=s?!!s.open:true;$('#secq').checked=s?!!s.search:false;$('#sece').textContent='';$('#secdlg').showModal();$('#sect').focus()}
+$('#sadd').onclick=()=>openSec();
+$('#seccancel').onclick=()=>$('#secdlg').close();
+$('#secdlg').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.close()});
+['#sect','#secs'].forEach(q=>$(q).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#secsave').click()}}));
+$('#secsave').onclick=()=>run(async()=>{const b={title:$('#sect').value.trim(),sub:$('#secs').value.trim(),open:$('#seco').checked,search:$('#secq').checked};
+  if(!b.title){$('#sece').textContent='Nhập tên section.';$('#sect').focus();return}
+  if(SECEDIT){const r=await api('/sections/'+SECEDIT.id,'PUT',b);Object.assign(SECEDIT,r.section)}else{const r=await api('/sections','POST',{...b,tab_id:TABID});S.sections.push(r.section)}
+  $('#secdlg').close();refreshSecUi();toast('Đã lưu section')});
 /* links */
 const detect=(u)=>{try{const hn=new URL(u).hostname.replace(/^www\./,''),M={'discord.gg':'discord','discord.com':'discord','tiktok.com':'tiktok','youtube.com':'youtube','youtu.be':'youtube','github.com':'github','roblox.com':'roblox','facebook.com':'facebook','fb.com':'facebook','instagram.com':'instagram','x.com':'x','twitter.com':'x','t.me':'telegram','twitch.tv':'twitch','spotify.com':'spotify','steamcommunity.com':'steam','reddit.com':'reddit'},k=Object.keys(M).find(d=>hn===d||hn.endsWith('.'+d));return k?M[k]:''}catch{return ''}};
 function lrow(l={}){const slug=(l.icon||'').startsWith('si:')?l.icon.slice(3):'';
  const pf=h('select',{'aria-label':'Nền tảng'},h('option',{value:'',text:'Nền tảng khác'}),...Object.entries(PLAT).map(([k,v])=>h('option',{value:k,text:v[0]})));pf.value=PLAT[slug]?slug:'';
  const u=h('input',{class:'u',placeholder:'Dán link vào đây, ví dụ https://discord.gg/...',maxlength:'500',inputmode:'url','aria-label':'URL'}),lb=h('input',{placeholder:'Tên hiển thị',maxlength:'40','aria-label':'Tên'});
  u.value=l.url||'';lb.value=l.label||'';const nt=h('input',{class:'nt',placeholder:'Mô tả ngắn (không bắt buộc)',maxlength:'80','aria-label':'Mô tả'});nt.value=l.note||'';const sel=linkSel(l);
+ const secSel=h('select',{'aria-label':'Section'}),tOf=()=>Number((sel.value||'').split('|')[0])||0;let sc=Number(l.section_id)||0,pt=tOf();
+ const fillSec=()=>{const L=secsOf(tOf());secSel.hidden=!L.length;secOpts(secSel,tOf(),sc)};
+ secSel.addEventListener('change',()=>{sc=Number(secSel.value)||0;poke()});sel.addEventListener('change',()=>{if(tOf()!==pt){pt=tOf();sc=0}fillSec()});
+ const ls=h('div',{class:'lsel'},sel,secSel);
  u.addEventListener('input',()=>{const k=detect(u.value);if(k&&!pf.value){pf.value=k;if(!lb.value)lb.value=PLAT[k][0]}});
  pf.addEventListener('change',()=>{if(pf.value&&!lb.value)lb.value=PLAT[pf.value][0]});
  const X={icon_url:l.icon_url||'',banner_url:l.banner_url||'',color:l.color||''},xs=h('small',{class:'lx-s'}),xsync=()=>{const f=[X.icon_url&&'icon',X.banner_url&&'banner',X.color&&'màu'].filter(Boolean);xs.textContent=f.length?'Đã đặt: '+f.join(', '):'Mặc định'};
  const lx=h('div',{class:'lx pg'},h('button',{class:'btn sm',type:'button',text:'Icon, banner, màu',onclick:()=>openLk(r,X,()=>{xsync();poke()})}),xs);xsync();
- const r=h('div',{class:'lr'},u,h('div',{class:'ac pg'},h('button',{class:'btn sm','aria-label':'Lên',text:'↑',onclick:()=>{r.previousElementSibling&&r.parentNode.insertBefore(r,r.previousElementSibling);poke()}}),h('button',{class:'btn sm','aria-label':'Xuống',text:'↓',onclick:()=>{r.nextElementSibling&&r.parentNode.insertBefore(r.nextElementSibling,r);poke()}}),h('button',{class:'btn sm bad','aria-label':'Xoá link',text:'Xoá',onclick:()=>{r.remove();poke()}})),pf,lb,nt,lx,sel);
+ const r=h('div',{class:'lr'},u,h('div',{class:'ac pg'},h('button',{class:'btn sm','aria-label':'Lên',text:'↑',onclick:()=>{r.previousElementSibling&&r.parentNode.insertBefore(r,r.previousElementSibling);poke()}}),h('button',{class:'btn sm','aria-label':'Xuống',text:'↓',onclick:()=>{r.nextElementSibling&&r.parentNode.insertBefore(r.nextElementSibling,r);poke()}}),h('button',{class:'btn sm bad','aria-label':'Xoá link',text:'Xoá',onclick:()=>{r.remove();poke()}})),pf,lb,nt,lx,ls);
  const md=()=>(sel.value.split('|')[1]||'social');
- const sync=()=>{const m=md();pf.disabled=m==='media';lx.hidden=m==='media';u.placeholder=m==='media'?'Link ảnh hoặc video, ví dụ https://.../anh.jpg':m==='link'?'Dán link cần chia sẻ, ví dụ https://...':'Dán link vào đây, ví dụ https://discord.gg/...';lb.placeholder=m==='media'?'Chú thích (không bắt buộc cũng được)':'Tên hiển thị'};sel.addEventListener('change',sync);sync();
- r._g=()=>{const p=(sel.value||'').split('|');return{icon:pf.value&&md()!=='media'?'si:'+pf.value:'🔗',label:lb.value,url:u.value,tab_id:Number(p[0])||0,mode:p[1]||'',note:nt.value,...(md()==='media'?{}:X)}};return r}
+ const sync=()=>{const m=md();pf.disabled=m==='media';lx.hidden=m==='media';u.placeholder=m==='media'?'Link ảnh hoặc video, ví dụ https://.../anh.jpg':m==='link'?'Dán link cần chia sẻ, ví dụ https://...':'Dán link vào đây, ví dụ https://discord.gg/...';lb.placeholder=m==='media'?'Chú thích (không bắt buộc cũng được)':'Tên hiển thị'};sel.addEventListener('change',sync);sync();fillSec();r._sec=fillSec;
+ r._g=()=>{const p=(sel.value||'').split('|');return{icon:pf.value&&md()!=='media'?'si:'+pf.value:'🔗',label:lb.value,url:u.value,tab_id:Number(p[0])||0,mode:p[1]||'',note:nt.value,section_id:Number(secSel.value)||0,...(md()==='media'?{}:X)}};return r}
 /* v18.3: icon, banner, màu riêng cho link Social và Link (ghi đè mặc định của nền tảng); popup có card xem trước */
 let LKX=null,LKDONE=null,LKC='';
 const hostOf=(u)=>{try{return new URL(u).hostname.replace(/^www\./,'')}catch{return ''}};
@@ -194,7 +221,7 @@ function scCard(s){const on=s.id===editId,st=ST[s.status]||ST.working,img=/^http
     h('div',{class:'sc-bd'},
       h('div',{class:'sc-t'},h('i',{class:'dot '+st[1]}),h('b',{text:s.title}),s.published?'':h('span',{class:'tag',text:'Nháp'})),
       h('div',{class:'sc-m',text:[s.game,s.id].filter(Boolean).join(' · ')}),
-      h('div',{class:'sc-f'},h('span',{text:st[0]}),s.version?h('span',{text:s.version}):'',s.updated_at?h('span',{text:'Cập nhật '+new Date(s.updated_at).toLocaleDateString('vi-VN')}):'',h('span',{text:s.runs+' chạy'}),h('span',{text:s.copies+' copy'}))),
+      h('div',{class:'sc-f'},h('span',{text:st[0]}),s.version?h('span',{text:s.version}):'',(()=>{const t=pickTab(S.tabs,'script',s.tab_id),id=t?secOf(S.sections,t.id,s):0,x=id?S.sections.find(y=>y.id===id):null;return x?h('span',{text:'Section: '+x.title}):''})(),s.updated_at?h('span',{text:'Cập nhật '+new Date(s.updated_at).toLocaleDateString('vi-VN')}):'',h('span',{text:s.runs+' chạy'}),h('span',{text:s.copies+' copy'}))),
     RAW?h('div',{class:'sc-ac'},h('button',{class:'btn sm',type:'button',text:'Copy raw',onclick:(e)=>{e.stopPropagation();copyRaw(s)}})):'');
   const go=()=>{if(!$('#v-tab').hidden)RET=location.hash;location.hash='#/scripts/'+s.id};c.onclick=go;c.onkeydown=(e)=>{if((e.key==='Enter'||e.key===' ')&&e.target===c){e.preventDefault();go()}};return c}
 function slist(){const b=$('#slist');scStrip();
@@ -205,7 +232,7 @@ function slist(){const b=$('#slist');scStrip();
   b.replaceChildren(...a.map(scCard))}
 $('#q').addEventListener('input',slist);
 let GI=[];
-const sv=()=>JSON.stringify([$('#si').value,$('#st').value,$('#sg').value,($('#sst input:checked')||{}).value,$('#sd').value,$('#sc').value,$('#sp2').checked,$('#sm').value,$('#sb').value,$('#sver').value,$('#scl').value,$('#sft').value,$('#shw').value,$('#sex').value,GI,$('#sk').checked,$('#skn').value,$('#sku').value]);
+const sv=()=>JSON.stringify([$('#si').value,$('#st').value,$('#sg').value,($('#sst input:checked')||{}).value,$('#sd').value,$('#sc').value,$('#sp2').checked,$('#sm').value,$('#sb').value,$('#ssec').value,$('#sver').value,$('#scl').value,$('#sft').value,$('#shw').value,$('#sex').value,GI,$('#sk').checked,$('#skn').value,$('#sku').value]);
 async function loadVlog(s){const b=$('#vlog');b.replaceChildren();if(!s)return;
  try{const list=await api('/scripts/'+s.id+'/versions');b.replaceChildren(...list.map(v=>h('div',{},h('div',{class:'t'},h('i',{text:v.version+'   '+new Date(v.created_at).toLocaleDateString('vi-VN')})),
   h('div',{class:'n'},h('button',{class:'btn sm bad',type:'button',text:'Xoá',onclick:()=>run(async()=>{await api('/versions/'+v.id,'DELETE');loadVlog(s)})})),h('div',{class:'m',text:v.changelog||'Không có ghi chú'}))))}catch{}}
@@ -225,7 +252,7 @@ $('#sku').addEventListener('input',()=>{$('#ske').textContent=''});
 function openScript(id){const sp=$('#split');editId=id&&id!=='new'?id:null;
  if(!id){sp.classList.remove('open');slist();return}
  const s=editId?S.scripts.find(x=>x.id===editId):null;if(editId&&!s){location.hash='#/scripts';return}
- $('#si').value=s?s.id:'';$('#si').disabled=!!s;$('#st').value=s?s.title:'';$('#sg').value=s?s.game:'';$('#sm').value=s?s.image_url:'';$('#sver').value=s?s.version||'':'';$('#scl').value=s?s.changelog||'':'';$('#sft').value=s?s.features||'':'';$('#shw').value=s?s.howto||'':'';$('#sex').value=s?s.executors||'':'';loadVlog(s);fillSb(s?s.tab_id:NEWTAB);
+ $('#si').value=s?s.id:'';$('#si').disabled=!!s;$('#st').value=s?s.title:'';$('#sg').value=s?s.game:'';$('#sm').value=s?s.image_url:'';$('#sver').value=s?s.version||'':'';$('#scl').value=s?s.changelog||'':'';$('#sft').value=s?s.features||'':'';$('#shw').value=s?s.howto||'':'';$('#sex').value=s?s.executors||'':'';loadVlog(s);fillSb(s?s.tab_id:NEWTAB);fillSsec(s?Number(s.section_id)||0:0);
  $('#sst input[value='+(s?s.status:'working')+']').checked=true;$('#sd').value=s?s.description:'';$('#sc').value=s?s.code:'';$('#sp2').checked=s?!!s.published:true;
  GI=s&&Array.isArray(s.images)?s.images.slice():[];$('#sgi').value='';$('#sge').textContent='';drawGi();
  $('#sk').checked=!!(s&&s.has_key);$('#kbox').hidden=!$('#sk').checked;$('#skn').value=s?s.key_note||'':'';$('#sku').value=s?s.key_url||'':'';$('#ske').textContent='';
@@ -234,7 +261,7 @@ function openScript(id){const sp=$('#split');editId=id&&id!=='new'?id:null;
 $('#rs').onclick=()=>{REORD=!REORD;$('#rs').textContent=REORD?'Xong':'Sắp xếp';$('#q').hidden=REORD;if(REORD)$('#split').classList.remove('open');slist()};
 $('#ns').onclick=()=>location.hash='#/scripts/new';
 $('#bk').onclick=()=>location.hash=RET||'#/tabs';
-$('#ss').onclick=()=>run(async()=>{const nw=!editId,body={id:$('#si').value.trim(),title:$('#st').value,game:$('#sg').value,status:$('#sst input:checked').value,description:$('#sd').value,code:$('#sc').value,published:$('#sp2').checked,image_url:$('#sm').value,tab_id:Number($('#sb').value),version:$('#sver').value,changelog:$('#scl').value,features:$('#sft').value,howto:$('#shw').value,executors:$('#sex').value,images:GI,has_key:$('#sk').checked,key_note:$('#skn').value,key_url:$('#sku').value.trim()};
+$('#ss').onclick=()=>run(async()=>{const nw=!editId,body={id:$('#si').value.trim(),title:$('#st').value,game:$('#sg').value,status:$('#sst input:checked').value,description:$('#sd').value,code:$('#sc').value,published:$('#sp2').checked,image_url:$('#sm').value,tab_id:Number($('#sb').value),section_id:Number($('#ssec').value)||0,version:$('#sver').value,changelog:$('#scl').value,features:$('#sft').value,howto:$('#shw').value,executors:$('#sex').value,images:GI,has_key:$('#sk').checked,key_note:$('#skn').value,key_url:$('#sku').value.trim()};
  if(body.has_key&&body.key_url&&!/^https:\/\//.test(body.key_url)){$('#ske').textContent='Link lấy key phải bắt đầu bằng https://';$('#sku').focus();return}
  const rs=nw?await api('/scripts','POST',body):await api('/scripts/'+editId,'PUT',body);
  await load();dirty=false;if(rs&&rs.extra===false)toast('Chưa chạy migration 011 nên ảnh minh họa và key chưa được lưu',true);else toast(nw?'Đã tạo script':'Đã lưu script');if(nw)location.hash='#/scripts/'+body.id;else openScript(editId)});
@@ -247,6 +274,8 @@ function tabSel(feat,cur){const s=h('select',{'aria-label':'Tab'}),t=S.tabs.filt
 /* mỗi lựa chọn là một tab (tab "Khác" tách theo từng kiểu link nó bật), giá trị dạng "idTab|kiểu" */
 function linkSel(l){const s=h('select',{'aria-label':'Tab và kiểu hiển thị'});S.tabs.forEach(t=>tabFeats(t).filter(k=>LINK_FEATS.includes(k)).forEach(k=>s.append(h('option',{value:t.id+'|'+k,text:t.kind==='custom'?t.name+' · '+tabModeName(k):t.name}))));const p=linkPlace(S.tabs,l);if(p.tab)s.value=p.tab.id+'|'+p.mode;return s}
 function fillSb(cur){const n=tabSel('script',cur);$('#sb').innerHTML=n.innerHTML;$('#sb').value=n.value}
+function fillSsec(cur){const tid=Number($('#sb').value)||0;$('#ssecw').hidden=!secsOf(tid).length;secOpts($('#ssec'),tid,cur)}
+$('#sb').addEventListener('change',()=>fillSsec(0));
 function moveTab(id,dir){const a=S.tabs,i=a.findIndex(t=>t.id===id),j=i+dir;if(!a[j])return;[a[i],a[j]]=[a[j],a[i]];run(async()=>{await api('/tabs-order','PUT',{ids:a.map(t=>t.id)});await load();drawTabs()})}
 const tabLinks=(t)=>S.links.filter(l=>{const p=linkPlace(S.tabs,l);return p.tab&&p.tab.id===t.id});
 const tabScripts=(t)=>S.scripts.filter(x=>{const p=pickTab(S.tabs,'script',x.tab_id);return p&&p.id===t.id});
@@ -278,9 +307,9 @@ function moveScrIn(t,s,dir){const L=tabScripts(t),o=L[L.indexOf(s)+dir];if(!o)re
 function fillTab(){const t=S.tabs.find(x=>x.id===TABID);if(!t){location.replace('#/tabs');return}editId=null;
  const fs=tabFeats(t),hn=fs.includes('note'),hl=fs.some(k=>k==='social'||k==='link'),hm=fs.includes('media'),hs=fs.includes('script');
  $('#tth').textContent=$('#mtitle').textContent=t.name;$('#ttag').textContent=tabModeName(t.kind);document.title=t.name+' · noir dash';
- $('#tnote').hidden=!hn;$('#tlinks').hidden=!hl;$('#tmedia').hidden=!hm;$('#tbscr').hidden=!hs;$('#tsv').hidden=!(hn||hl||hm);
+ $('#tsecs').hidden=!(hl||hm||hs);drawSecs();$('#tnote').hidden=!hn;$('#tlinks').hidden=!hl;$('#tmedia').hidden=!hm;$('#tbscr').hidden=!hs;$('#tsv').hidden=!(hn||hl||hm);
  NOTES=hn?parseNotes(t.body).map(n=>({...n})):[];NT0=ntKey();
- const mine=tabLinks(t),isMd=l=>linkPlace(S.tabs,l).mode==='media';MED=hm?mine.filter(isMd).map(l=>({label:l.label||'',url:l.url||'',note:l.note||''})):[];
+ const mine=tabLinks(t),isMd=l=>linkPlace(S.tabs,l).mode==='media';MED=hm?mine.filter(isMd).map(l=>({label:l.label||'',url:l.url||'',note:l.note||'',sec:Number(l.section_id)||0})):[];
  $('#lrows').replaceChildren(...(hl?mine.filter(l=>!isMd(l)).map(lrow):[]));drawNotes();drawMed();
  const L=hs?tabScripts(t):[];$('#tsl').replaceChildren(...(L.length?L.map((x,k)=>h('div',{class:'ts-row'},scCard(x),h('div',{class:'ts-mv pg'},h('button',{class:'btn sm',type:'button','aria-label':'Lên',text:'↑',disabled:k===0,onclick:()=>moveScrIn(t,x,-1)}),h('button',{class:'btn sm',type:'button','aria-label':'Xuống',text:'↓',disabled:k===L.length-1,onclick:()=>moveScrIn(t,x,1)})))):[h('div',{class:'empty',text:'Tab này chưa có script.'})]));
  track(tvv)}
@@ -288,7 +317,7 @@ $('#al').onclick=()=>{const t=S.tabs.find(x=>x.id===TABID),r=lrow({tab_id:t.id,m
 $('#ns2').onclick=()=>{NEWTAB=TABID;RET=location.hash;location.hash='#/scripts/new'};
 $('#tsv').onclick=()=>run(async()=>{const t=S.tabs.find(x=>x.id===TABID),fs=tabFeats(t);
  if(fs.includes('note')&&ntKey()!==NT0)await api('/tabs/'+t.id,'PUT',{body:JSON.stringify({notes:NOTES.map(n=>({id:n.id,title:n.title,text:n.text}))})});
- if(fs.some(k=>LINK_FEATS.includes(k))){const mine=new Set(tabLinks(t)),md=fs.includes('media')?MED.map(m=>({icon:'🔗',label:m.label,url:m.url,tab_id:t.id,mode:'media',note:m.note})):[];const lr=await api('/links','PUT',{links:[...S.links.filter(l=>!mine.has(l)),...$$('.lr').map(r=>r._g()),...md]});if(lr&&lr.extra===false)toast('Chưa chạy migration 010 nên icon, banner, màu chưa được lưu',true)}
+ if(fs.some(k=>LINK_FEATS.includes(k))){const mine=new Set(tabLinks(t)),md=fs.includes('media')?MED.map(m=>({icon:'🔗',label:m.label,url:m.url,tab_id:t.id,mode:'media',note:m.note,section_id:m.sec||0})):[];const lr=await api('/links','PUT',{links:[...S.links.filter(l=>!mine.has(l)),...$$('.lr').map(r=>r._g()),...md]});if(lr&&lr.extra===false)toast('Chưa chạy migration 010 nên icon, banner, màu chưa được lưu',true)}
  await load();fillTab();toast('Đã lưu tab')});
 /* v18.2: ghi chú nhiều mục và ảnh & video dạng card (giống chọn hình nền); thay đổi nằm trong trang, bấm Lưu mới ghi lên server */
 let NOTES=[],NT0='',MED=[],ntEdit=null,mdEdit=null;
@@ -316,17 +345,20 @@ $('#ntsave').onclick=()=>{const t=$('#ntn').value.trim(),x=$('#ntx').value.trim(
  $('#ntadd').close();ntEdit=null;drawNotes();poke()};
 $('#ntadd').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.close()});
 /* --- ảnh và video --- */
-function mdCard(m,i){const c=h('div',{class:'bgp-card',tabindex:'0',role:'button','aria-label':'Sửa '+m.label,title:m.label}),th=bgThumb(m.url);
+const mdThumb=(u)=>{const e=embedOf(u);if(!e)return bgThumb(u);const t=h('div',{class:'bgp-thumb emb-th'});if(e.thumb){const i=h('img',{alt:'',src:e.thumb,loading:'lazy'});i.onerror=()=>i.remove();t.append(i)}t.append(h('span',{class:'emb-b',text:'▶ '+e.label}));return t};
+function mdCard(m,i){const c=h('div',{class:'bgp-card',tabindex:'0',role:'button','aria-label':'Sửa '+m.label,title:m.label}),th=mdThumb(m.url);
  th.append(opsBox(()=>openMd(i),()=>delMd(i),m.label));c.append(th,h('div',{class:'bgp-name',text:m.label}));return cardKey(c,()=>openMd(i))}
 function drawMed(){$('#mdgrid').replaceChildren(addCard('Thêm ảnh/video',()=>openMd()),...MED.map(mdCard))}
 function pvMd(){const u=$('#mdu').value.trim(),b=$('#mdpv');b.replaceChildren();b.classList.remove('has');
  if(!/^https:\/\//.test(u)){b.append(h('span',{text:'Xem trước sẽ hiện ở đây'}));return}
+ const hn=hostOf(u);if(/^(vm|vt)\.tiktok\.com$/.test(hn)||(/^(www\.)?tiktok\.com$/.test(hn)&&!/\/video\//.test(u))){b.append(h('span',{text:'Link TikTok rút gọn hoặc trang cá nhân không nhúng được. Dùng link video đầy đủ: tiktok.com/@tên/video/số'}));return}
  b.classList.add('has');
+ const em=embedOf(u);if(em){b.append(h('div',{class:'emb-pv'},h('b',{text:'▶ Video '+em.label}),h('small',{text:'Trang bio nhúng video này, khách bấm vào mới phát'})));return}
  if(isVid(u))b.append(mkVideo(u));
  else{const i=h('img',{alt:''});i.onerror=()=>{b.classList.remove('has');b.replaceChildren(h('span',{text:'Không tải được, kiểm tra lại link'}))};i.src=u;b.append(i)}}
 function mdMvSync(){const i=mdEdit;$('#mdmv').hidden=i===null;$('#mdprev').disabled=i===null||i<=0;$('#mdnext').disabled=i===null||i>=MED.length-1}
 function openMd(i){mdEdit=Number.isInteger(i)?i:null;const m=mdEdit===null?null:MED[mdEdit];$('#mdat').textContent=m?'Sửa ảnh hoặc video':'Thêm ảnh hoặc video';
- $('#mdn').value=m?m.label:'';$('#mdu').value=m?m.url:'';$('#mdd').value=m?m.note:'';$('#mde').textContent='';pvMd();mdMvSync();$('#mdadd').showModal()}
+ $('#mdn').value=m?m.label:'';$('#mdu').value=m?m.url:'';$('#mdd').value=m?m.note:'';$('#mdsw').hidden=!secsOf(TABID).length;secOpts($('#mds'),TABID,m?m.sec:0);$('#mde').textContent='';pvMd();mdMvSync();$('#mdadd').showModal()}
 function delMd(i){const m=MED[i];run(async()=>{if(!await ask('Xoá "'+m.label+'" khỏi tab?','Xoá'))return;MED.splice(i,1);drawMed();poke()})}
 $('#mdu').addEventListener('input',pvMd);
 $('#mdcancel').onclick=()=>$('#mdadd').close();
@@ -335,7 +367,7 @@ $('#mdprev').onclick=()=>mdMove(-1);$('#mdnext').onclick=()=>mdMove(1);
 $('#mdsave').onclick=()=>{const n=$('#mdn').value.trim(),u=$('#mdu').value.trim(),d=$('#mdd').value.trim(),er=$('#mde');
  if(!n){er.textContent='Nhập tên.';$('#mdn').focus();return}
  if(!/^https:\/\//.test(u)){er.textContent='Link phải bắt đầu bằng https://';$('#mdu').focus();return}
- if(mdEdit!==null)Object.assign(MED[mdEdit],{label:n,url:u,note:d});else{if(MED.length>=100){er.textContent='Tối đa 100 ảnh hoặc video trong một tab.';return}MED.unshift({label:n,url:u,note:d})}
+ if(mdEdit!==null)Object.assign(MED[mdEdit],{label:n,url:u,note:d,sec:Number($('#mds').value)||0});else{if(MED.length>=100){er.textContent='Tối đa 100 ảnh hoặc video trong một tab.';return}MED.unshift({label:n,url:u,note:d,sec:Number($('#mds').value)||0})}
  $('#mdadd').close();mdEdit=null;drawMed();poke()};
 ['#mdn','#mdu','#mdd'].forEach(s=>$(s).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#mdsave').click()}}));
 $('#mdadd').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.close()});
@@ -440,7 +472,7 @@ $('#sbtn').onclick=()=>{const b=document.querySelector('.view:not([hidden]) .sav
 $$('#um input').forEach(i=>i.onchange=()=>{localStorage.setItem('noir_ui',i.value);applyUi()});
 
 /* boot */
-async function load(){const[d,st]=await Promise.all([api('/data'),api('/stats?days='+RANGE)]);S={profile:d.profile,links:d.links,scripts:d.scripts,tabs:d.tabs,settings:d.settings,stats:st};prep()}
+async function load(){const[d,st]=await Promise.all([api('/data'),api('/stats?days='+RANGE)]);S={profile:d.profile,links:d.links,scripts:d.scripts,tabs:d.tabs,sections:d.sections||[],settings:d.settings,stats:st};prep()}
 async function boot(){const me=await api('/me');BIO=me.bio_url||'';RAW=me.raw_url||'';if(BIO){$('#site').href=$('#site2').href=$('#site3').href=$('#site4').href=BIO}else{$('#site').hidden=$('#site2').hidden=true}
  await load();applyLook(mergeSet(S.settings),'dash');$('#gate').hidden=true;$('#app').hidden=false;route()}
 fetch('/api/theme').then(r=>r.json()).then(s=>applyLook(mergeSet(s),'dash')).catch(()=>{});
