@@ -1,4 +1,4 @@
-window.LOOK_V = 19;
+window.LOOK_V = 20;
 // Giao diện dùng chung cho bio và dash: màu, hình nền (cố định/ngẫu nhiên/trình chiếu + hiệu ứng chuyển),
 // thẻ hồ sơ (khung avatar), hiệu ứng hạt, danh sách nền tảng mạng xã hội.
 (function () {
@@ -366,5 +366,29 @@ window.LOOK_V = 19;
     var t = window.pickTab(tabs, 'social', 0) || LF.map(function (k) { return window.pickTab(tabs, k, 0); }).filter(Boolean)[0];
     if (!t) return { tab: null, mode: '' };
     var f = window.tabFeats(t); return { tab: t, mode: f.indexOf('social') >= 0 ? 'social' : f.filter(isL)[0] };
+  };
+  // v20: section nằm trong một tab; mục (link hoặc script) thuộc section khi section_id trỏ tới section còn tồn tại của đúng tab đó
+  window.secOf = function (secs, tabId, it) {
+    var id = Number(it && it.section_id) || 0;
+    return id && (secs || []).some(function (s) { return s.id === id && s.tab_id === tabId; }) ? id : 0;
+  };
+  // v20: link TikTok hoặc YouTube dùng để nhúng video. Trả về {p, id, src, ratio, label} hoặc null.
+  // TikTok cần link đầy đủ có /video/<số>; link rút gọn (vm.tiktok.com) không đọc được id nên không nhúng.
+  window.embedOf = function (u) {
+    var x; try { x = new URL(u); } catch (e) { return null; }
+    if (x.protocol !== 'https:') return null;
+    var h = x.hostname.replace(/^(www|m)\./, ''), m, id = '';
+    if (h === 'tiktok.com') {
+      m = x.pathname.match(/\/video\/(\d{8,25})(?:\/|$)/);
+      return m ? { p: 'tiktok', id: m[1], src: 'https://www.tiktok.com/embed/v2/' + m[1], ratio: '9/16', label: 'TikTok' } : null;
+    }
+    var short = false;
+    if (h === 'youtu.be') id = x.pathname.slice(1, 12);
+    else if (h === 'youtube.com' || h === 'youtube-nocookie.com') {
+      m = x.pathname.match(/^\/(shorts|embed|live)\/([\w-]{11})/);
+      if (m) { id = m[2]; short = m[1] === 'shorts'; } else if (x.pathname === '/watch') id = x.searchParams.get('v') || '';
+    }
+    if (!/^[\w-]{11}$/.test(id)) return null;
+    return { p: 'youtube', id: id, src: 'https://www.youtube-nocookie.com/embed/' + id, thumb: 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg', ratio: short ? '9/16' : '16/9', label: 'YouTube' };
   };
 })();
