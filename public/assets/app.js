@@ -253,7 +253,7 @@ function openScript(id){const sp=$('#split');editId=id&&id!=='new'?id:null;
  if(!id){sp.classList.remove('open');slist();return}
  const s=editId?S.scripts.find(x=>x.id===editId):null;if(editId&&!s){location.hash='#/scripts';return}
  $('#si').value=s?s.id:'';$('#si').disabled=!!s;$('#st').value=s?s.title:'';$('#sg').value=s?s.game:'';$('#sm').value=s?s.image_url:'';$('#sver').value=s?s.version||'':'';$('#scl').value=s?s.changelog||'':'';$('#sft').value=s?s.features||'':'';$('#shw').value=s?s.howto||'':'';$('#sex').value=s?s.executors||'':'';loadVlog(s);fillSb(s?s.tab_id:NEWTAB);fillSsec(s?Number(s.section_id)||0:0);
- $('#sst input[value='+(s?s.status:'working')+']').checked=true;$('#sd').value=s?s.description:'';$('#sc').value=s?s.code:'';$('#sp2').checked=s?!!s.published:true;
+ $('#sst input[value='+(s?s.status:'working')+']').checked=true;$('#sd').value=s?s.description:'';$('#sc').value=s?s.code:'';$('#cimh').textContent='';$('#curl').value='';$('#sp2').checked=s?!!s.published:true;
  GI=s&&Array.isArray(s.images)?s.images.slice():[];$('#sgi').value='';$('#sge').textContent='';drawGi();
  $('#sk').checked=!!(s&&s.has_key);$('#kbox').hidden=!$('#sk').checked;$('#skn').value=s?s.key_note||'':'';$('#sku').value=s?s.key_url||'':'';$('#ske').textContent='';
  $('#et').textContent=s?s.title:'Script mới';$('#ds').hidden=$('#cm').hidden=!s;if(s)$('#cmt').textContent='loadstring(game:HttpGet("'+RAW+'/'+s.id+'"))()';
@@ -268,6 +268,26 @@ $('#ss').onclick=()=>run(async()=>{const nw=!editId,body={id:$('#si').value.trim
 $('#ds').onclick=()=>run(async()=>{if(!await ask('Xoá script "'+$('#st').value+'"? Link raw của nó sẽ ngừng hoạt động và không khôi phục được.','Xoá script'))return;
  await api('/scripts/'+editId,'DELETE');await load();dirty=false;toast('Đã xoá script');location.hash=RET||'#/tabs'});
 $('#cc').onclick=async()=>{try{await navigator.clipboard.writeText($('#cmt').textContent);toast('Đã copy lệnh')}catch{toast('Trình duyệt chặn copy, hãy chọn và copy thủ công',true)}};
+
+/* v20.2: nhập code từ file trên thiết bị hoặc từ link raw; bật/tắt xem trước lệnh loadstring (nhớ theo thiết bị) */
+const CODE_MAX=200000;
+function codeSet(text,from){const ta=$('#sc'),apply=()=>{ta.value=text;ta.dispatchEvent(new Event('input',{bubbles:true}));$('#cimh').textContent='Đã nhập '+text.split('\n').length.toLocaleString('vi-VN')+' dòng ('+((n)=>n<1024?n+' B':(n/1024).toFixed(1)+' KB')(new Blob([text]).size)+') từ '+from+'. Bấm Lưu script để ghi lại.'};
+  if(ta.value.trim()&&ta.value!==text)return ask('Thay code hiện có bằng nội dung từ "'+from+'"?','Thay').then(ok=>{if(ok)apply()});apply();return Promise.resolve()}
+$('#cfile').onclick=()=>$('#cfi').click();
+$('#cfi').onchange=()=>run(async()=>{const f=$('#cfi').files[0];$('#cfi').value='';if(!f)return;
+  if(f.size>CODE_MAX*3){toast('File quá lớn (code tối đa 200.000 ký tự)',true);return}
+  const t=(await f.text()).replace(/^\uFEFF/,'');
+  if(t.includes('\u0000')){toast('Đây không phải file văn bản',true);return}
+  if(t.length>CODE_MAX){toast('Code quá dài (tối đa 200.000 ký tự)',true);return}
+  await codeSet(t,f.name)});
+$('#cget').onclick=()=>run(async()=>{const u=$('#curl').value.trim();if(!/^https:\/\//i.test(u)){toast('Link phải bắt đầu bằng https://',true);return}
+  const b=$('#cget');b.disabled=true;b.textContent='Đang lấy...';
+  try{const r=await api('/fetch-raw','POST',{url:u});await codeSet(r.text,hostOf(r.url)||'link')}finally{b.disabled=false;b.textContent='Lấy từ URL'}});
+$('#curl').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#cget').click()}});
+const cmOn=()=>{try{return localStorage.getItem('noir_cmshow')!=='0'}catch{return true}};
+const cmSync=()=>{$('#cmb').hidden=!$('#cmtog').checked};
+$('#cmtog').checked=cmOn();cmSync();
+$('#cmtog').onchange=()=>{try{localStorage.setItem('noir_cmshow',$('#cmtog').checked?'1':'0')}catch{}cmSync()};
 
 /* tabs */
 function tabSel(feat,cur){const s=h('select',{'aria-label':'Tab'}),t=S.tabs.filter(x=>tabFeats(x).includes(feat));t.forEach(x=>s.append(h('option',{value:x.id,text:x.name})));const d=pickTab(S.tabs,feat,cur);if(d)s.value=d.id;return s}
