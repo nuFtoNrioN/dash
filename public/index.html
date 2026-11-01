@@ -190,9 +190,12 @@
             <p class="hint" id="ske" role="alert" style="color:var(--bad);margin:6px 0 0"></p>
             <p class="hint">Có link thì popup hiện nút Lấy Key. Card của script sẽ có huy hiệu Key.</p>
           </div>
-          <label for="sc">Code</label><textarea id="sc" class="code" spellcheck="false"></textarea>
+          <label for="sc">Code</label>
+          <div class="cimp"><button class="btn sm" id="cfile" type="button">Nhập file</button><input id="cfi" type="file" accept=".lua,.luau,.txt,text/plain" hidden><input id="curl" placeholder="Hoặc dán link raw (GitHub, Pastebin...)" inputmode="url" autocomplete="off" spellcheck="false" aria-label="Link raw"><button class="btn sm" id="cget" type="button">Lấy từ URL</button></div>
+          <p class="hint" id="cimh" style="margin:6px 0 8px"></p>
+          <textarea id="sc" class="code" spellcheck="false"></textarea>
           <label class="sw"><input type="checkbox" id="sp2">Công khai trên trang bio</label>
-          <div id="cm" hidden><label>Lệnh để người dùng chạy</label><div class="cmd"><code id="cmt"></code><button class="btn sm" id="cc">Copy</button></div></div>
+          <div id="cm" hidden><label class="sw"><input type="checkbox" id="cmtog">Hiện xem trước lệnh loadstring</label><div id="cmb"><label>Lệnh để người dùng chạy</label><div class="cmd"><code id="cmt"></code><button class="btn sm" id="cc">Copy</button></div></div></div>
           <button class="btn bad sm" id="ds" style="margin-top:26px" hidden>Xoá script</button>
         </div>
       </div>
