@@ -310,6 +310,57 @@ async function readJson(request) {
   try { return await request.json(); } catch { throw new HttpError(400, 'JSON không hợp lệ'); }
 }
 
+// v20.2: lấy code từ link raw (GitHub, Pastebin...) để điền vào ô code. Chỉ https công khai, có giới hạn dung lượng, thời gian và số lần chuyển hướng.
+function rawUrlFix(href) {
+  const x = new URL(href), h = x.hostname.toLowerCase();
+  if (h === 'github.com' || h === 'www.github.com') { // link trang file -> link raw
+    const m = x.pathname.match(/^\/([^/]+)\/([^/]+)\/(?:blob|raw)\/(.+)$/);
+    if (m) return 'https://raw.githubusercontent.com/' + m[1] + '/' + m[2] + '/' + m[3];
+  }
+  if (h === 'pastebin.com' || h === 'www.pastebin.com') {
+    const m = x.pathname.match(/^\/([A-Za-z0-9]{6,12})$/);
+    if (m) return 'https://pastebin.com/raw/' + m[1];
+  }
+  return href;
+}
+function badRawHost(h) {
+  h = h.toLowerCase().replace(/\.$/, '');
+  if (!h || !h.includes('.') || h.includes(':') || h.startsWith('[')) return true; // tên không có dấu chấm, IPv6
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) return true; // IPv4
+  return h === 'localhost' || /\.(localhost|local|internal|lan|home|corp)$/.test(h);
+}
+async function fetchRawText(link) {
+  let u;
+  try { u = new URL(link); } catch (e) { throw new HttpError(400, 'Link không hợp lệ'); }
+  u = new URL(rawUrlFix(u.href));
+  for (let hop = 0; ; hop++) {
+    if (u.protocol !== 'https:' || u.username || u.password || (u.port && u.port !== '443') || badRawHost(u.hostname)) throw new HttpError(400, 'Chỉ nhận link https công khai (không dùng IP, localhost hay cổng lạ)');
+    if (hop > 3) throw new HttpError(400, 'Link chuyển hướng quá nhiều lần');
+    const ac = new AbortController(), timer = setTimeout(() => ac.abort(), 8000);
+    let r;
+    try { r = await fetch(u.href, { redirect: 'manual', signal: ac.signal, headers: { 'User-Agent': 'noir-dash/1.0', Accept: 'text/plain,*/*' } }); }
+    catch (e) { throw new HttpError(502, 'Không tải được link (hết thời gian hoặc bị chặn)'); }
+    finally { clearTimeout(timer); }
+    if (r.status >= 300 && r.status < 400 && r.headers.get('location')) { u = new URL(r.headers.get('location'), u); continue; }
+    if (!r.ok) throw new HttpError(502, 'Link trả về lỗi ' + r.status);
+    if (/text\/html/i.test(r.headers.get('content-type') || '')) throw new HttpError(400, 'Link này là trang web, không phải file raw. Hãy dùng nút Raw của trang đó');
+    const reader = r.body.getReader(), parts = []; let n = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      n += value.length;
+      if (n > 600000) { try { await reader.cancel(); } catch (e) { /* bỏ qua */ } throw new HttpError(400, 'File quá lớn (code tối đa 200.000 ký tự)'); }
+      parts.push(value);
+    }
+    const buf = new Uint8Array(n); let o = 0;
+    for (const part of parts) { buf.set(part, o); o += part.length; }
+    const text = new TextDecoder('utf-8').decode(buf).replace(/^\uFEFF/, '');
+    if (text.includes('\u0000')) throw new HttpError(400, 'Đây không phải file văn bản');
+    if (text.length > 200000) throw new HttpError(400, 'Code quá dài (tối đa 200.000 ký tự)');
+    return { text, url: u.href };
+  }
+}
+
 async function admin(request, env, url) {
   const who = await authenticate(request, env);
   if (!who) return json({ error: 'Unauthorized' }, 401);
@@ -321,6 +372,10 @@ async function admin(request, env, url) {
   const path = url.pathname.slice('/api/admin'.length);
 
   try {
+    if (path === '/fetch-raw' && method === 'POST') {
+      const r = await fetchRawText(str((await readJson(request)).url, 1000));
+      return json({ ok: true, text: r.text, url: r.url });
+    }
     if (path === '/me' && method === 'GET') return json({ who, bio_url: (env.BIO_URL || '').replace(/\/$/, ''), raw_url: (env.RAW_URL || '').replace(/\/$/, '') });
 
     if (path === '/data' && method === 'GET') {
