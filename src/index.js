@@ -54,11 +54,11 @@ const flatScripts = (rows) => rows.map((r) => {
   if (!('extra' in r)) return r;
   const { extra, ...o } = r; let e = {}; try { e = JSON.parse(extra || '{}'); } catch (x) { /* bỏ qua */ }
   const k = e && typeof e.k === 'object' && e.k ? e.k : null;
-  return { ...o, images: Array.isArray(e.g) ? e.g.filter((u) => /^https:\/\//.test(u)).slice(0, 3) : [], has_key: !!k, key_note: (k && k.n) || '', key_url: (k && k.u) || '', section_id: Number(e.s) || 0 };
+  return { ...o, images: Array.isArray(e.g) ? e.g.filter((u) => /^https:\/\//.test(u)).slice(0, 3) : [], has_key: !!k, key_note: (k && k.n) || '', key_url: (k && k.u) || '', section_id: Number(e.s) || 0, show_cmd: !e.h };
 });
 // chuỗi JSON lưu vào scripts.extra ('' nếu không có gì). strict: link sai thì báo lỗi (khi lưu); không strict: bỏ qua (khi khôi phục sao lưu)
 // v20: s là id section (số nguyên dương) của script trong tab
-function scriptExtra(images, hasKey, note, link, strict, sec) {
+function scriptExtra(images, hasKey, note, link, strict, sec, hideCmd) {
   const list = Array.isArray(images) ? images : [];
   if (strict && list.length > 3) throw new HttpError(400, 'Tối đa 3 ảnh minh họa');
   const g = [];
@@ -75,6 +75,7 @@ function scriptExtra(images, hasKey, note, link, strict, sec) {
     o.k = k;
   }
   const sn = Number(sec); if (Number.isInteger(sn) && sn > 0) o.s = sn;
+  if (hideCmd) o.h = 1; // v20.2: h = 1 là ẩn khung lệnh loadstring ở bio (thiếu h = hiện, giữ nguyên script cũ)
   return Object.keys(o).length ? JSON.stringify(o) : '';
 }
 async function hasScriptExtra(env) { // chưa chạy migration 011 thì không có cột extra
@@ -584,7 +585,7 @@ async function admin(request, env, url) {
       b.scripts.forEach((x) => {
         const id = str(x.id, 40), code = typeof x.code === 'string' ? x.code : '';
         if (!ID_RE.test(id) || !str(x.title, 80) || !code || code.length > 200000) return;
-        let ex = ''; try { const e = JSON.parse(x.extra || '{}'), k = e && typeof e.k === 'object' ? e.k : null; ex = scriptExtra(e.g, !!k, k && k.n, k && k.u, false, e.s); } catch (e) { /* bỏ qua */ }
+        let ex = ''; try { const e = JSON.parse(x.extra || '{}'), k = e && typeof e.k === 'object' ? e.k : null; ex = scriptExtra(e.g, !!k, k && k.n, k && k.u, false, e.s, !!e.h); } catch (e) { /* bỏ qua */ }
         st.push(env.DB.prepare('INSERT INTO scripts (id, title, description, game, image_url, tab_id, status, code, published, runs, copies, created_at, updated_at, version, changelog, features, howto, executors, sort' + (withSX ? ', extra' : '') + ') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?' + (withSX ? ', ?' : '') + ')')
           .bind(...[id, str(x.title, 80), str(x.description, 500), str(x.game, 80), x.image_url ? (httpsUrl(str(x.image_url, 500)) || '') : '', n(x.tab_id),
             STATUSES.includes(x.status) ? x.status : 'working', code, x.published ? 1 : 0, n(x.runs), n(x.copies), n(x.created_at, Date.now()), n(x.updated_at, Date.now()), str(x.version, 20), str(x.changelog, 300), str(x.features, 600), str(x.howto, 600), str(x.executors, 100), n(x.sort)].concat(withSX ? [ex] : [])));
@@ -706,5 +707,5 @@ function scriptFields(b) {
   const image_url = b.image_url ? httpsUrl(str(b.image_url, 500)) : '';
   if (image_url === null) throw new HttpError(400, 'Ảnh game phải là link https');
   const tab_id = Number.isInteger(b.tab_id) && b.tab_id >= 0 ? b.tab_id : 0;
-  return { title, code, status, image_url, tab_id, version: str(b.version, 20), changelog: str(b.changelog, 300), features: str(b.features, 600), howto: str(b.howto, 600), executors: str(b.executors, 100), description: str(b.description, 500), game: str(b.game, 80), published: b.published ? 1 : 0, extra: scriptExtra(b.images, !!b.has_key, b.key_note, b.key_url, true, b.section_id) };
+  return { title, code, status, image_url, tab_id, version: str(b.version, 20), changelog: str(b.changelog, 300), features: str(b.features, 600), howto: str(b.howto, 600), executors: str(b.executors, 100), description: str(b.description, 500), game: str(b.game, 80), published: b.published ? 1 : 0, extra: scriptExtra(b.images, !!b.has_key, b.key_note, b.key_url, true, b.section_id, b.show_cmd === false) };
 }
