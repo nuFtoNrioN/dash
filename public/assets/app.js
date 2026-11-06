@@ -232,7 +232,7 @@ function slist(){const b=$('#slist');scStrip();
   b.replaceChildren(...a.map(scCard))}
 $('#q').addEventListener('input',slist);
 let GI=[];
-const sv=()=>JSON.stringify([$('#si').value,$('#st').value,$('#sg').value,($('#sst input:checked')||{}).value,$('#sd').value,$('#sc').value,$('#sp2').checked,$('#sm').value,$('#sb').value,$('#ssec').value,$('#sver').value,$('#scl').value,$('#sft').value,$('#shw').value,$('#sex').value,GI,$('#sk').checked,$('#skn').value,$('#sku').value]);
+const sv=()=>JSON.stringify([$('#si').value,$('#st').value,$('#sg').value,($('#sst input:checked')||{}).value,$('#sd').value,$('#sc').value,$('#sp2').checked,$('#sm').value,$('#sb').value,$('#ssec').value,$('#sver').value,$('#scl').value,$('#sft').value,$('#shw').value,$('#sex').value,GI,$('#sk').checked,$('#skn').value,$('#sku').value,$('#cmtog').checked]);
 async function loadVlog(s){const b=$('#vlog');b.replaceChildren();if(!s)return;
  try{const list=await api('/scripts/'+s.id+'/versions');b.replaceChildren(...list.map(v=>h('div',{},h('div',{class:'t'},h('i',{text:v.version+'   '+new Date(v.created_at).toLocaleDateString('vi-VN')})),
   h('div',{class:'n'},h('button',{class:'btn sm bad',type:'button',text:'Xoá',onclick:()=>run(async()=>{await api('/versions/'+v.id,'DELETE');loadVlog(s)})})),h('div',{class:'m',text:v.changelog||'Không có ghi chú'}))))}catch{}}
@@ -253,7 +253,7 @@ function openScript(id){const sp=$('#split');editId=id&&id!=='new'?id:null;
  if(!id){sp.classList.remove('open');slist();return}
  const s=editId?S.scripts.find(x=>x.id===editId):null;if(editId&&!s){location.hash='#/scripts';return}
  $('#si').value=s?s.id:'';$('#si').disabled=!!s;$('#st').value=s?s.title:'';$('#sg').value=s?s.game:'';$('#sm').value=s?s.image_url:'';$('#sver').value=s?s.version||'':'';$('#scl').value=s?s.changelog||'':'';$('#sft').value=s?s.features||'':'';$('#shw').value=s?s.howto||'':'';$('#sex').value=s?s.executors||'':'';loadVlog(s);fillSb(s?s.tab_id:NEWTAB);fillSsec(s?Number(s.section_id)||0:0);
- $('#sst input[value='+(s?s.status:'working')+']').checked=true;$('#sd').value=s?s.description:'';$('#sc').value=s?s.code:'';$('#cimh').textContent='';$('#curl').value='';$('#sp2').checked=s?!!s.published:true;
+ $('#sst input[value='+(s?s.status:'working')+']').checked=true;$('#sd').value=s?s.description:'';$('#sc').value=s?s.code:'';$('#cimh').textContent='';$('#curl').value='';$('#sp2').checked=s?!!s.published:true;$('#cmtog').checked=s?s.show_cmd!==false:false;
  GI=s&&Array.isArray(s.images)?s.images.slice():[];$('#sgi').value='';$('#sge').textContent='';drawGi();
  $('#sk').checked=!!(s&&s.has_key);$('#kbox').hidden=!$('#sk').checked;$('#skn').value=s?s.key_note||'':'';$('#sku').value=s?s.key_url||'':'';$('#ske').textContent='';
  $('#et').textContent=s?s.title:'Script mới';$('#ds').hidden=$('#cm').hidden=!s;if(s)$('#cmt').textContent='loadstring(game:HttpGet("'+RAW+'/'+s.id+'"))()';
@@ -261,7 +261,7 @@ function openScript(id){const sp=$('#split');editId=id&&id!=='new'?id:null;
 $('#rs').onclick=()=>{REORD=!REORD;$('#rs').textContent=REORD?'Xong':'Sắp xếp';$('#q').hidden=REORD;if(REORD)$('#split').classList.remove('open');slist()};
 $('#ns').onclick=()=>location.hash='#/scripts/new';
 $('#bk').onclick=()=>location.hash=RET||'#/tabs';
-$('#ss').onclick=()=>run(async()=>{const nw=!editId,body={id:$('#si').value.trim(),title:$('#st').value,game:$('#sg').value,status:$('#sst input:checked').value,description:$('#sd').value,code:$('#sc').value,published:$('#sp2').checked,image_url:$('#sm').value,tab_id:Number($('#sb').value),section_id:Number($('#ssec').value)||0,version:$('#sver').value,changelog:$('#scl').value,features:$('#sft').value,howto:$('#shw').value,executors:$('#sex').value,images:GI,has_key:$('#sk').checked,key_note:$('#skn').value,key_url:$('#sku').value.trim()};
+$('#ss').onclick=()=>run(async()=>{const nw=!editId,body={id:$('#si').value.trim(),title:$('#st').value,game:$('#sg').value,status:$('#sst input:checked').value,description:$('#sd').value,code:$('#sc').value,published:$('#sp2').checked,image_url:$('#sm').value,tab_id:Number($('#sb').value),section_id:Number($('#ssec').value)||0,version:$('#sver').value,changelog:$('#scl').value,features:$('#sft').value,howto:$('#shw').value,executors:$('#sex').value,images:GI,has_key:$('#sk').checked,key_note:$('#skn').value,key_url:$('#sku').value.trim(),show_cmd:$('#cmtog').checked};
  if(body.has_key&&body.key_url&&!/^https:\/\//.test(body.key_url)){$('#ske').textContent='Link lấy key phải bắt đầu bằng https://';$('#sku').focus();return}
  const rs=nw?await api('/scripts','POST',body):await api('/scripts/'+editId,'PUT',body);
  await load();dirty=false;if(rs&&rs.extra===false)toast('Chưa chạy migration 011 nên ảnh minh họa và key chưa được lưu',true);else toast(nw?'Đã tạo script':'Đã lưu script');if(nw)location.hash='#/scripts/'+body.id;else openScript(editId)});
@@ -284,10 +284,6 @@ $('#cget').onclick=()=>run(async()=>{const u=$('#curl').value.trim();if(!/^https
   const b=$('#cget');b.disabled=true;b.textContent='Đang lấy...';
   try{const r=await api('/fetch-raw','POST',{url:u});await codeSet(r.text,hostOf(r.url)||'link')}finally{b.disabled=false;b.textContent='Lấy từ URL'}});
 $('#curl').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#cget').click()}});
-const cmOn=()=>{try{return localStorage.getItem('noir_cmshow')!=='0'}catch{return true}};
-const cmSync=()=>{$('#cmb').hidden=!$('#cmtog').checked};
-$('#cmtog').checked=cmOn();cmSync();
-$('#cmtog').onchange=()=>{try{localStorage.setItem('noir_cmshow',$('#cmtog').checked?'1':'0')}catch{}cmSync()};
 
 /* tabs */
 function tabSel(feat,cur){const s=h('select',{'aria-label':'Tab'}),t=S.tabs.filter(x=>tabFeats(x).includes(feat));t.forEach(x=>s.append(h('option',{value:x.id,text:x.name})));const d=pickTab(S.tabs,feat,cur);if(d)s.value=d.id;return s}
